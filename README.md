@@ -40,7 +40,7 @@ A modern media player app built with Flutter that supports both video and audio 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/mojar_player_new.git
+git clone https://github.com/mojarcoder/mojar-player-new.git
 cd mojar_player_new
 ```
 
