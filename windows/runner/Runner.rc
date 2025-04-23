@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "mojar_player_new" "\0"
+            VALUE "CompanyName", "com.mojarcoder" "\0"
+            VALUE "FileDescription", "Mojar Player Pro" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "mojar_player_new" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "mojar_player_new.exe" "\0"
-            VALUE "ProductName", "mojar_player_new" "\0"
+            VALUE "InternalName", "mojar_player_pro" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.mojarcoder. All rights reserved." "\0"
+            VALUE "OriginalFilename", "Mojar Player Pro.exe" "\0"
+            VALUE "ProductName", "Mojar Player Pro" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

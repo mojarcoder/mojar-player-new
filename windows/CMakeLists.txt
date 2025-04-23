@@ -1,10 +1,13 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(mojar_player_new LANGUAGES CXX)
+project(mojar_player_pro LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "mojar_player_new")
+set(BINARY_NAME "mojar_player_pro")
+
+# Set a display name for Windows (shown in title bar)
+set(DISPLAY_NAME "Mojar Player Pro")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

@@ -73,6 +73,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   List<String> _playlist = [];
   int _currentPlaylistIndex = 0;
   Timer? _hideControlsTimer;
+  Timer? _positionUpdateTimer; // Timer for updating position
 
   final GlobalKey _videoKey = GlobalKey();
 
@@ -104,6 +105,9 @@ class _PlayerScreenState extends State<PlayerScreen>
     // Keep screen on during video playback
     PlatformService.keepScreenOn(true);
 
+    // Start position update timer
+    _startPositionUpdateTimer();
+
     // Load saved playlist
     _loadPlaylist().then((_) {
       // Add current file to playlist if not already there
@@ -134,6 +138,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     _audioPlayer?.dispose();
     _chewieController?.dispose();
     _hideControlsTimer?.cancel();
+    _positionUpdateTimer?.cancel(); // Cancel position update timer
 
     // Reset orientation to portrait
     SystemChrome.setPreferredOrientations([
@@ -289,7 +294,8 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // Handle playback completion
     if (_videoController!.value.position >= _videoController!.value.duration) {
-      if (_playlist.length > 1 && _currentPlaylistIndex < _playlist.length - 1) {
+      if (_playlist.length > 1 &&
+          _currentPlaylistIndex < _playlist.length - 1) {
         _skipToNext();
       }
     }
@@ -335,11 +341,26 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   void _seek(Duration position) {
+    // Ensure position is not negative
+    final Duration validPosition =
+        position.isNegative ? Duration.zero : position;
+
+    // Ensure position is not beyond duration
+    final Duration clampedPosition =
+        _duration > Duration.zero && validPosition > _duration
+            ? _duration
+            : validPosition;
+
     if (_videoController != null) {
-      _videoController!.seekTo(position);
+      _videoController!.seekTo(clampedPosition);
     } else if (_audioPlayer != null) {
-      _audioPlayer!.seek(position);
+      _audioPlayer!.seek(clampedPosition);
     }
+
+    // Update state to reflect new position immediately
+    setState(() {
+      _position = clampedPosition;
+    });
   }
 
   void _skipToNext() {
@@ -458,7 +479,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     setState(() {
       _isFullscreen = !_isFullscreen;
     });
-    
+
     if (_isFullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     } else {
@@ -476,122 +497,124 @@ class _PlayerScreenState extends State<PlayerScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.9),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 15),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(3),
-                ),
+      builder:
+          (context) => Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.9),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
-              _buildContextMenuItem(
-                icon: Icons.folder_open,
-                title: 'Open Media',
-                onTap: () {
-                  Navigator.pop(context);
-                  _openNewMedia();
-                },
-              ),
-              _buildContextMenuItem(
-                icon: Icons.playlist_play,
-                title: _showPlaylist ? 'Hide Playlist' : 'Show Playlist',
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _showPlaylist = !_showPlaylist;
-                  });
-                },
-              ),
-              _buildContextMenuItem(
-                icon: Icons.info_outline,
-                title: 'Media Information',
-                onTap: () {
-                  Navigator.pop(context);
-                  _showMediaInfo();
-                },
-              ),
-              _buildContextMenuItem(
-                icon: Icons.camera_alt,
-                title: 'Take Screenshot',
-                onTap: () {
-                  Navigator.pop(context);
-                  _takeScreenshot();
-                },
-              ),
-              if (!_isAudioFile(_playlist[_currentPlaylistIndex])) ...[
-                _buildContextMenuItem(
-                  icon: Icons.subtitles,
-                  title: _hasSubtitles ? 'Remove Subtitles' : 'Add Subtitles',
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (_hasSubtitles) {
-                      setState(() {
-                        _hasSubtitles = false;
-                        _subtitlePath = null;
-                        _subtitles.clear();
-                        _currentSubtitleIndex = -1;
-                      });
-                    } else {
-                      _addSubtitle();
-                    }
-                  },
-                ),
-                _buildContextMenuItem(
-                  icon: Icons.sync,
-                  title: 'Audio Sync',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showAudioSyncSettings();
-                  },
-                ),
-                _buildContextMenuItem(
-                  icon: Icons.aspect_ratio,
-                  title: 'Aspect Ratio',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showAspectRatioSettings();
-                  },
-                ),
-              ] else ...[
-                _buildContextMenuItem(
-                  icon: Icons.audiotrack,
-                  title: 'Audio Settings',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showSettingsDialog();
-                  },
-                ),
-              ],
-              _buildContextMenuItem(
-                icon: Icons.help_outline,
-                title: 'About',
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AboutScreen(),
+            ),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 10, bottom: 15),
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(3),
                     ),
-                  );
-                },
+                  ),
+                  _buildContextMenuItem(
+                    icon: Icons.folder_open,
+                    title: 'Open Media',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openNewMedia();
+                    },
+                  ),
+                  _buildContextMenuItem(
+                    icon: Icons.playlist_play,
+                    title: _showPlaylist ? 'Hide Playlist' : 'Show Playlist',
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _showPlaylist = !_showPlaylist;
+                      });
+                    },
+                  ),
+                  _buildContextMenuItem(
+                    icon: Icons.info_outline,
+                    title: 'Media Information',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showMediaInfo();
+                    },
+                  ),
+                  _buildContextMenuItem(
+                    icon: Icons.camera_alt,
+                    title: 'Take Screenshot',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _takeScreenshot();
+                    },
+                  ),
+                  if (!_isAudioFile(_playlist[_currentPlaylistIndex])) ...[
+                    _buildContextMenuItem(
+                      icon: Icons.subtitles,
+                      title:
+                          _hasSubtitles ? 'Remove Subtitles' : 'Add Subtitles',
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (_hasSubtitles) {
+                          setState(() {
+                            _hasSubtitles = false;
+                            _subtitlePath = null;
+                            _subtitles.clear();
+                            _currentSubtitleIndex = -1;
+                          });
+                        } else {
+                          _addSubtitle();
+                        }
+                      },
+                    ),
+                    _buildContextMenuItem(
+                      icon: Icons.sync,
+                      title: 'Audio Sync',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showAudioSyncSettings();
+                      },
+                    ),
+                    _buildContextMenuItem(
+                      icon: Icons.aspect_ratio,
+                      title: 'Aspect Ratio',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showAspectRatioSettings();
+                      },
+                    ),
+                  ] else ...[
+                    _buildContextMenuItem(
+                      icon: Icons.audiotrack,
+                      title: 'Audio Settings',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showSettingsDialog();
+                      },
+                    ),
+                  ],
+                  _buildContextMenuItem(
+                    icon: Icons.help_outline,
+                    title: 'About',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -1009,7 +1032,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     } else {
       _setPortraitOrientation();
     }
-    
+
     // Force a rebuild of the UI
     setState(() {});
   }
@@ -1091,78 +1114,79 @@ class _PlayerScreenState extends State<PlayerScreen>
   void _showKeyboardShortcutsHelp() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.keyboard, color: primaryPink),
-            const SizedBox(width: 10),
-            const Text('Keyboard Shortcuts'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _KeyboardShortcutItem(
-                keyText: 'Space',
-                description: 'Play/Pause',
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.keyboard, color: primaryPink),
+                const SizedBox(width: 10),
+                const Text('Keyboard Shortcuts'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  _KeyboardShortcutItem(
+                    keyText: 'Space',
+                    description: 'Play/Pause',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: '→',
+                    description: 'Forward 10s',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: '←',
+                    description: 'Backward 10s',
+                  ),
+                  _KeyboardShortcutItem(keyText: '↑', description: 'Volume Up'),
+                  _KeyboardShortcutItem(
+                    keyText: '↓',
+                    description: 'Volume Down',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'F11',
+                    description: 'Toggle Fullscreen',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'N',
+                    description: 'Next Media',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'P',
+                    description: 'Previous Media',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'M',
+                    description: 'Toggle Mute',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'O',
+                    description: 'Toggle Orientation',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'A',
+                    description: 'Cycle Aspect Ratio',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'I',
+                    description: 'Media Information',
+                  ),
+                  _KeyboardShortcutItem(
+                    keyText: 'Esc',
+                    description: 'Exit Fullscreen/Close Player',
+                  ),
+                ],
               ),
-              _KeyboardShortcutItem(
-                keyText: '→',
-                description: 'Forward 10s',
-              ),
-              _KeyboardShortcutItem(
-                keyText: '←',
-                description: 'Backward 10s',
-              ),
-              _KeyboardShortcutItem(keyText: '↑', description: 'Volume Up'),
-              _KeyboardShortcutItem(
-                keyText: '↓',
-                description: 'Volume Down',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'F11',
-                description: 'Toggle Fullscreen',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'N',
-                description: 'Next Media',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'P',
-                description: 'Previous Media',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'M',
-                description: 'Toggle Mute',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'O',
-                description: 'Toggle Orientation',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'A',
-                description: 'Cycle Aspect Ratio',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'I',
-                description: 'Media Information',
-              ),
-              _KeyboardShortcutItem(
-                keyText: 'Esc',
-                description: 'Exit Fullscreen/Close Player',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1460,95 +1484,200 @@ class _PlayerScreenState extends State<PlayerScreen>
   Widget _buildAudioPlayerUI() {
     return Container(
       color: Colors.black,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.music_note, size: 80, color: primaryPink),
-            const SizedBox(height: 20),
-            Text(
-              FolderBrowserService().getFileName(_playlist[_currentPlaylistIndex]),
-              style: const TextStyle(color: Colors.white, fontSize: 18),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Album art placeholder (can be replaced with actual album art if available)
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryPink.withOpacity(0.3),
+                  blurRadius: 15,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
-          ],
-        ),
+            child: Center(
+              child: Icon(Icons.music_note, size: 100, color: primaryPink),
+            ),
+          ),
+          const SizedBox(height: 30),
+          // Song title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Text(
+              FolderBrowserService().getFileName(
+                _playlist[_currentPlaylistIndex],
+              ),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Additional info (can be populated with metadata if available)
+          Text(
+            "Now Playing",
+            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          ),
+          const SizedBox(height: 50),
+        ],
+      ),
+    );
+  }
+
+  // Build seekbar
+  Widget _buildSeekBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Time display
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDuration(_position),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                _formatDuration(_duration),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ],
+          ),
+          // Seekbar slider
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 4.0,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+              activeTrackColor: primaryPink,
+              inactiveTrackColor: Colors.grey[600],
+              thumbColor: Colors.white,
+              overlayColor: primaryPink.withOpacity(0.3),
+            ),
+            child: Slider(
+              value: _position.inSeconds.toDouble(),
+              min: 0,
+              max:
+                  _duration.inSeconds > 0
+                      ? _duration.inSeconds.toDouble()
+                      : 1.0,
+              onChanged: (value) {
+                _seek(Duration(seconds: value.toInt()));
+                // Keep controls visible after seeking
+                _startHideTimer();
+              },
+              onChangeStart: (_) {
+                // Keep controls visible during seeking
+                _hideControlsTimer?.cancel();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // Build bottom controls
   Widget _buildBottomControls() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      color: Colors.black.withOpacity(0.3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // 10 seconds backward
-          IconButton(
-            icon: const Icon(Icons.replay_10, color: Colors.white),
-            onPressed: () => _seek(_position - const Duration(seconds: 10)),
-            tooltip: '10 Seconds Backward',
-          ),
-          // Previous track
-          IconButton(
-            icon: const Icon(Icons.skip_previous, color: Colors.white),
-            onPressed: _skipToPrevious,
-            tooltip: 'Previous Track',
-          ),
-          // Play/Pause
-          IconButton(
-            icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
-            onPressed: _togglePlayPause,
-            tooltip: _isPlaying ? 'Pause' : 'Play',
-          ),
-          // Next track
-          IconButton(
-            icon: const Icon(Icons.skip_next, color: Colors.white),
-            onPressed: _skipToNext,
-            tooltip: 'Next Track',
-          ),
-          // 10 seconds forward
-          IconButton(
-            icon: const Icon(Icons.forward_10, color: Colors.white),
-            onPressed: () => _seek(_position + const Duration(seconds: 10)),
-            tooltip: '10 Seconds Forward',
-          ),
-          // Volume control
-          IconButton(
-            icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up, color: Colors.white),
-            onPressed: _toggleMute,
-            tooltip: _isMuted ? 'Unmute' : 'Mute',
-          ),
-          // Exit app
-          IconButton(
-            icon: const Icon(Icons.exit_to_app, color: Colors.white),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Exit Player'),
-                  content: const Text('Are you sure you want to exit?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Exit'),
-                    ),
-                  ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Add seekbar
+        _buildSeekBar(),
+        // Control buttons
+        Container(
+          padding: const EdgeInsets.all(8),
+          color: Colors.black.withOpacity(0.3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // 10 seconds backward
+              IconButton(
+                icon: const Icon(Icons.replay_10, color: Colors.white),
+                onPressed: () => _seek(_position - const Duration(seconds: 10)),
+                tooltip: '10 Seconds Backward',
+              ),
+              // Previous track
+              IconButton(
+                icon: const Icon(Icons.skip_previous, color: Colors.white),
+                onPressed: _skipToPrevious,
+                tooltip: 'Previous Track',
+              ),
+              // Play/Pause
+              IconButton(
+                icon: Icon(
+                  _isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
                 ),
-              );
-            },
-            tooltip: 'Exit Player',
+                onPressed: _togglePlayPause,
+                tooltip: _isPlaying ? 'Pause' : 'Play',
+              ),
+              // Next track
+              IconButton(
+                icon: const Icon(Icons.skip_next, color: Colors.white),
+                onPressed: _skipToNext,
+                tooltip: 'Next Track',
+              ),
+              // 10 seconds forward
+              IconButton(
+                icon: const Icon(Icons.forward_10, color: Colors.white),
+                onPressed: () => _seek(_position + const Duration(seconds: 10)),
+                tooltip: '10 Seconds Forward',
+              ),
+              // Volume control
+              IconButton(
+                icon: Icon(
+                  _isMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                ),
+                onPressed: _toggleMute,
+                tooltip: _isMuted ? 'Unmute' : 'Mute',
+              ),
+              // Exit app
+              IconButton(
+                icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder:
+                        (context) => AlertDialog(
+                          title: const Text('Exit Player'),
+                          content: const Text('Are you sure you want to exit?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Exit'),
+                            ),
+                          ],
+                        ),
+                  );
+                },
+                tooltip: 'Exit Player',
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1572,50 +1701,57 @@ class _PlayerScreenState extends State<PlayerScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.9),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+      builder:
+          (context) => Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.9),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 10, bottom: 15),
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.play_arrow, color: primaryPink),
+                    title: const Text(
+                      'Play Now',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _currentPlaylistIndex = index;
+                      });
+                      _initializePlayer(_playlist[index]);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: primaryPink),
+                    title: const Text(
+                      'Remove from Playlist',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _removeFromPlaylist(index);
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 15),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.play_arrow, color: primaryPink),
-                title: const Text('Play Now', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _currentPlaylistIndex = index;
-                  });
-                  _initializePlayer(_playlist[index]);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: primaryPink),
-                title: const Text('Remove from Playlist', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _removeFromPlaylist(index);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -1634,26 +1770,27 @@ class _PlayerScreenState extends State<PlayerScreen>
     if (_playlist.isEmpty) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Playlist'),
-        content: const Text('Are you sure you want to clear the playlist?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Clear Playlist'),
+            content: const Text('Are you sure you want to clear the playlist?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _playlist = [_playlist[_currentPlaylistIndex]];
+                    _currentPlaylistIndex = 0;
+                  });
+                },
+                child: const Text('Clear'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _playlist = [_playlist[_currentPlaylistIndex]];
-                _currentPlaylistIndex = 0;
-              });
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1667,101 +1804,139 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Video Settings'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Brightness'),
-                Slider(
-                  value: brightness,
-                  min: 0.5,
-                  max: 1.5,
-                  divisions: 10,
-                  label: brightness.toStringAsFixed(1),
-                  onChanged: (value) {
-                    setState(() => brightness = value);
-                    _applyVideoEffects(brightness, contrast, saturation, sharpness, gamma);
-                  },
-                ),
-                const Text('Contrast'),
-                Slider(
-                  value: contrast,
-                  min: 0.5,
-                  max: 1.5,
-                  divisions: 10,
-                  label: contrast.toStringAsFixed(1),
-                  onChanged: (value) {
-                    setState(() => contrast = value);
-                    _applyVideoEffects(brightness, contrast, saturation, sharpness, gamma);
-                  },
-                ),
-                const Text('Saturation'),
-                Slider(
-                  value: saturation,
-                  min: 0.0,
-                  max: 2.0,
-                  divisions: 10,
-                  label: saturation.toStringAsFixed(1),
-                  onChanged: (value) {
-                    setState(() => saturation = value);
-                    _applyVideoEffects(brightness, contrast, saturation, sharpness, gamma);
-                  },
-                ),
-                const Text('Sharpness'),
-                Slider(
-                  value: sharpness,
-                  min: 0.5,
-                  max: 1.5,
-                  divisions: 10,
-                  label: sharpness.toStringAsFixed(1),
-                  onChanged: (value) {
-                    setState(() => sharpness = value);
-                    _applyVideoEffects(brightness, contrast, saturation, sharpness, gamma);
-                  },
-                ),
-                const Text('Gamma'),
-                Slider(
-                  value: gamma,
-                  min: 0.5,
-                  max: 1.5,
-                  divisions: 10,
-                  label: gamma.toStringAsFixed(1),
-                  onChanged: (value) {
-                    setState(() => gamma = value);
-                    _applyVideoEffects(brightness, contrast, saturation, sharpness, gamma);
-                  },
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        brightness = 1.0;
-                        contrast = 1.0;
-                        saturation = 1.0;
-                        sharpness = 1.0;
-                        gamma = 1.0;
-                      });
-                      _applyVideoEffects(brightness, contrast, saturation, sharpness, gamma);
-                    },
-                    child: const Text('Reset to Default'),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text('Video Settings'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Brightness'),
+                        Slider(
+                          value: brightness,
+                          min: 0.5,
+                          max: 1.5,
+                          divisions: 10,
+                          label: brightness.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() => brightness = value);
+                            _applyVideoEffects(
+                              brightness,
+                              contrast,
+                              saturation,
+                              sharpness,
+                              gamma,
+                            );
+                          },
+                        ),
+                        const Text('Contrast'),
+                        Slider(
+                          value: contrast,
+                          min: 0.5,
+                          max: 1.5,
+                          divisions: 10,
+                          label: contrast.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() => contrast = value);
+                            _applyVideoEffects(
+                              brightness,
+                              contrast,
+                              saturation,
+                              sharpness,
+                              gamma,
+                            );
+                          },
+                        ),
+                        const Text('Saturation'),
+                        Slider(
+                          value: saturation,
+                          min: 0.0,
+                          max: 2.0,
+                          divisions: 10,
+                          label: saturation.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() => saturation = value);
+                            _applyVideoEffects(
+                              brightness,
+                              contrast,
+                              saturation,
+                              sharpness,
+                              gamma,
+                            );
+                          },
+                        ),
+                        const Text('Sharpness'),
+                        Slider(
+                          value: sharpness,
+                          min: 0.5,
+                          max: 1.5,
+                          divisions: 10,
+                          label: sharpness.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() => sharpness = value);
+                            _applyVideoEffects(
+                              brightness,
+                              contrast,
+                              saturation,
+                              sharpness,
+                              gamma,
+                            );
+                          },
+                        ),
+                        const Text('Gamma'),
+                        Slider(
+                          value: gamma,
+                          min: 0.5,
+                          max: 1.5,
+                          divisions: 10,
+                          label: gamma.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() => gamma = value);
+                            _applyVideoEffects(
+                              brightness,
+                              contrast,
+                              saturation,
+                              sharpness,
+                              gamma,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                brightness = 1.0;
+                                contrast = 1.0;
+                                saturation = 1.0;
+                                sharpness = 1.0;
+                                gamma = 1.0;
+                              });
+                              _applyVideoEffects(
+                                brightness,
+                                contrast,
+                                saturation,
+                                sharpness,
+                                gamma,
+                              );
+                            },
+                            child: const Text('Reset to Default'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1796,77 +1971,85 @@ class _PlayerScreenState extends State<PlayerScreen>
   void _showAudioSyncSettings() {
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Audio Synchronization'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Current delay: ${_audioDelay.toStringAsFixed(1)} seconds',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              Slider(
-                value: _audioDelay,
-                min: -5.0,
-                max: 5.0,
-                divisions: 100,
-                label: _audioDelay.toStringAsFixed(1),
-                onChanged: (value) {
-                  setState(() => _audioDelay = value);
-                  _applyAudioDelay();
-                },
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove),
-                    onPressed: () {
-                      setState(() {
-                        _audioDelay = (_audioDelay - 0.1).clamp(-5.0, 5.0);
-                      });
-                      _applyAudioDelay();
-                    },
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text('Audio Synchronization'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Current delay: ${_audioDelay.toStringAsFixed(1)} seconds',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      Slider(
+                        value: _audioDelay,
+                        min: -5.0,
+                        max: 5.0,
+                        divisions: 100,
+                        label: _audioDelay.toStringAsFixed(1),
+                        onChanged: (value) {
+                          setState(() => _audioDelay = value);
+                          _applyAudioDelay();
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove),
+                            onPressed: () {
+                              setState(() {
+                                _audioDelay = (_audioDelay - 0.1).clamp(
+                                  -5.0,
+                                  5.0,
+                                );
+                              });
+                              _applyAudioDelay();
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh),
+                            onPressed: () {
+                              setState(() => _audioDelay = 0.0);
+                              _applyAudioDelay();
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: () {
+                              setState(() {
+                                _audioDelay = (_audioDelay + 0.1).clamp(
+                                  -5.0,
+                                  5.0,
+                                );
+                              });
+                              _applyAudioDelay();
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Adjust if audio and video are out of sync.\n'
+                        'Negative values make audio play earlier,\n'
+                        'positive values make audio play later.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: () {
-                      setState(() => _audioDelay = 0.0);
-                      _applyAudioDelay();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () {
-                      setState(() {
-                        _audioDelay = (_audioDelay + 0.1).clamp(-5.0, 5.0);
-                      });
-                      _applyAudioDelay();
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Adjust if audio and video are out of sync.\n'
-                'Negative values make audio play earlier,\n'
-                'positive values make audio play later.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1889,54 +2072,65 @@ class _PlayerScreenState extends State<PlayerScreen>
   // Aspect ratio settings
   void _showAspectRatioSettings() {
     final aspectRatios = [
-      {'name': 'Original', 'ratio': _videoController?.value.aspectRatio ?? 16 / 9},
+      {
+        'name': 'Original',
+        'ratio': _videoController?.value.aspectRatio ?? 16 / 9,
+      },
       {'name': '16:9 (Widescreen)', 'ratio': 16 / 9},
       {'name': '4:3 (Standard)', 'ratio': 4 / 3},
       {'name': '1:1 (Square)', 'ratio': 1.0},
       {'name': '21:9 (Ultrawide)', 'ratio': 21 / 9},
-      {'name': 'Stretch to Fill', 'ratio': MediaQuery.of(context).size.width / MediaQuery.of(context).size.height},
+      {
+        'name': 'Stretch to Fill',
+        'ratio':
+            MediaQuery.of(context).size.width /
+            MediaQuery.of(context).size.height,
+      },
     ];
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Aspect Ratio'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: aspectRatios.map((ar) {
-            final ratio = ar['ratio'] as double;
-            return ListTile(
-              title: Text(ar['name'] as String),
-              subtitle: Text('${ratio.toStringAsFixed(2)}'),
-              selected: (ratio - _aspectRatio).abs() < 0.1,
-              onTap: () {
-                setState(() {
-                  _aspectRatio = ratio;
-                });
-                if (_chewieController != null) {
-                  final currentController = _chewieController!;
-                  _chewieController = ChewieController(
-                    videoPlayerController: currentController.videoPlayerController,
-                    autoPlay: true,
-                    looping: currentController.looping,
-                    allowPlaybackSpeedChanging: true,
-                    allowedScreenSleep: false,
-                    showControls: false,
-                    aspectRatio: _aspectRatio,
-                  );
-                }
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Aspect Ratio'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children:
+                  aspectRatios.map((ar) {
+                    final ratio = ar['ratio'] as double;
+                    return ListTile(
+                      title: Text(ar['name'] as String),
+                      subtitle: Text('${ratio.toStringAsFixed(2)}'),
+                      selected: (ratio - _aspectRatio).abs() < 0.1,
+                      onTap: () {
+                        setState(() {
+                          _aspectRatio = ratio;
+                        });
+                        if (_chewieController != null) {
+                          final currentController = _chewieController!;
+                          _chewieController = ChewieController(
+                            videoPlayerController:
+                                currentController.videoPlayerController,
+                            autoPlay: true,
+                            looping: currentController.looping,
+                            allowPlaybackSpeedChanging: true,
+                            allowedScreenSleep: false,
+                            showControls: false,
+                            aspectRatio: _aspectRatio,
+                          );
+                        }
+                        Navigator.pop(context);
+                      },
+                    );
+                  }).toList(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -1949,126 +2143,169 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Subtitle Settings'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: const Text('Font Size'),
-                  trailing: DropdownButton<double>(
-                    value: fontSize,
-                    items: [12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0]
-                        .map((size) => DropdownMenuItem(
-                              value: size,
-                              child: Text('${size.toInt()}'),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => fontSize = value);
-                        _applySubtitleSettings(fontSize, fontColor, backgroundColor, position);
-                      }
-                    },
-                  ),
-                ),
-                ListTile(
-                  title: const Text('Font Color'),
-                  trailing: DropdownButton<Color>(
-                    value: fontColor,
-                    items: [
-                      Colors.white,
-                      Colors.yellow,
-                      Colors.green,
-                      Colors.cyan,
-                      Colors.red,
-                    ].map((color) => DropdownMenuItem(
-                          value: color,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            color: color,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text('Subtitle Settings'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          title: const Text('Font Size'),
+                          trailing: DropdownButton<double>(
+                            value: fontSize,
+                            items:
+                                [12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0]
+                                    .map(
+                                      (size) => DropdownMenuItem(
+                                        value: size,
+                                        child: Text('${size.toInt()}'),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => fontSize = value);
+                                _applySubtitleSettings(
+                                  fontSize,
+                                  fontColor,
+                                  backgroundColor,
+                                  position,
+                                );
+                              }
+                            },
                           ),
-                        )).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => fontColor = value);
-                        _applySubtitleSettings(fontSize, fontColor, backgroundColor, position);
-                      }
-                    },
-                  ),
-                ),
-                ListTile(
-                  title: const Text('Background Color'),
-                  trailing: DropdownButton<Color>(
-                    value: backgroundColor,
-                    items: [
-                      Colors.black.withOpacity(0.5),
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.9),
-                      Colors.transparent,
-                    ].map((color) => DropdownMenuItem(
-                          value: color,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            color: color,
+                        ),
+                        ListTile(
+                          title: const Text('Font Color'),
+                          trailing: DropdownButton<Color>(
+                            value: fontColor,
+                            items:
+                                [
+                                      Colors.white,
+                                      Colors.yellow,
+                                      Colors.green,
+                                      Colors.cyan,
+                                      Colors.red,
+                                    ]
+                                    .map(
+                                      (color) => DropdownMenuItem(
+                                        value: color,
+                                        child: Container(
+                                          width: 20,
+                                          height: 20,
+                                          color: color,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => fontColor = value);
+                                _applySubtitleSettings(
+                                  fontSize,
+                                  fontColor,
+                                  backgroundColor,
+                                  position,
+                                );
+                              }
+                            },
                           ),
-                        )).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => backgroundColor = value);
-                        _applySubtitleSettings(fontSize, fontColor, backgroundColor, position);
-                      }
-                    },
+                        ),
+                        ListTile(
+                          title: const Text('Background Color'),
+                          trailing: DropdownButton<Color>(
+                            value: backgroundColor,
+                            items:
+                                [
+                                      Colors.black.withOpacity(0.5),
+                                      Colors.black.withOpacity(0.7),
+                                      Colors.black.withOpacity(0.9),
+                                      Colors.transparent,
+                                    ]
+                                    .map(
+                                      (color) => DropdownMenuItem(
+                                        value: color,
+                                        child: Container(
+                                          width: 20,
+                                          height: 20,
+                                          color: color,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => backgroundColor = value);
+                                _applySubtitleSettings(
+                                  fontSize,
+                                  fontColor,
+                                  backgroundColor,
+                                  position,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        ListTile(
+                          title: const Text('Position'),
+                          trailing: DropdownButton<String>(
+                            value: position,
+                            items:
+                                ['Top', 'Middle', 'Bottom']
+                                    .map(
+                                      (pos) => DropdownMenuItem(
+                                        value: pos,
+                                        child: Text(pos),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => position = value);
+                                _applySubtitleSettings(
+                                  fontSize,
+                                  fontColor,
+                                  backgroundColor,
+                                  position,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                fontSize = 16.0;
+                                fontColor = Colors.white;
+                                backgroundColor = Colors.black.withOpacity(0.5);
+                                position = 'Bottom';
+                              });
+                              _applySubtitleSettings(
+                                fontSize,
+                                fontColor,
+                                backgroundColor,
+                                position,
+                              );
+                            },
+                            child: const Text('Reset to Default'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
                 ),
-                ListTile(
-                  title: const Text('Position'),
-                  trailing: DropdownButton<String>(
-                    value: position,
-                    items: ['Top', 'Middle', 'Bottom']
-                        .map((pos) => DropdownMenuItem(
-                              value: pos,
-                              child: Text(pos),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => position = value);
-                        _applySubtitleSettings(fontSize, fontColor, backgroundColor, position);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        fontSize = 16.0;
-                        fontColor = Colors.white;
-                        backgroundColor = Colors.black.withOpacity(0.5);
-                        position = 'Bottom';
-                      });
-                      _applySubtitleSettings(fontSize, fontColor, backgroundColor, position);
-                    },
-                    child: const Text('Reset to Default'),
-                  ),
-                ),
-              ],
-            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -2183,35 +2420,37 @@ class _PlayerScreenState extends State<PlayerScreen>
   List<SubtitleItem> _parseSubtitleFile(String content) {
     final List<SubtitleItem> subtitles = [];
     final lines = content.split('\n');
-    
+
     for (int i = 0; i < lines.length; i++) {
       if (lines[i].trim().isEmpty) continue;
-      
+
       try {
         // Parse SRT format
         if (lines[i].contains('-->')) {
           final times = lines[i].split('-->');
           final startTime = _parseSubtitleTime(times[0].trim());
           final endTime = _parseSubtitleTime(times[1].trim());
-          
+
           i++;
           final text = StringBuffer();
           while (i < lines.length && lines[i].trim().isNotEmpty) {
             text.writeln(lines[i]);
             i++;
           }
-          
-          subtitles.add(SubtitleItem(
-            startTime: startTime,
-            endTime: endTime,
-            text: text.toString().trim(),
-          ));
+
+          subtitles.add(
+            SubtitleItem(
+              startTime: startTime,
+              endTime: endTime,
+              text: text.toString().trim(),
+            ),
+          );
         }
       } catch (e) {
         debugPrint('Error parsing subtitle line: $e');
       }
     }
-    
+
     return subtitles;
   }
 
@@ -2221,7 +2460,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     final hours = int.parse(parts[0]);
     final minutes = int.parse(parts[1]);
     final seconds = double.parse(parts[2].replaceAll(',', '.'));
-    
+
     return Duration(
       hours: hours,
       minutes: minutes,
@@ -2233,10 +2472,10 @@ class _PlayerScreenState extends State<PlayerScreen>
   // Update current subtitle based on video position
   void _updateCurrentSubtitle() {
     if (_videoController == null || _subtitles.isEmpty) return;
-    
+
     final position = _videoController!.value.position;
     for (int i = 0; i < _subtitles.length; i++) {
-      if (position >= _subtitles[i].startTime && 
+      if (position >= _subtitles[i].startTime &&
           position <= _subtitles[i].endTime) {
         if (_currentSubtitleIndex != i) {
           setState(() {
@@ -2246,7 +2485,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         return;
       }
     }
-    
+
     if (_currentSubtitleIndex != -1) {
       setState(() {
         _currentSubtitleIndex = -1;
@@ -2273,16 +2512,42 @@ class _PlayerScreenState extends State<PlayerScreen>
             color: Colors.white,
             fontSize: 16,
             shadows: [
-              Shadow(
-                offset: Offset(1, 1),
-                blurRadius: 2,
-                color: Colors.black,
-              ),
+              Shadow(offset: Offset(1, 1), blurRadius: 2, color: Colors.black),
             ],
           ),
         ),
       ),
     );
+  }
+
+  // Start timer to update position periodically
+  void _startPositionUpdateTimer() {
+    _positionUpdateTimer?.cancel();
+    _positionUpdateTimer = Timer.periodic(const Duration(milliseconds: 200), (
+      timer,
+    ) {
+      if (mounted) {
+        if (_videoController != null && _videoController!.value.isInitialized) {
+          setState(() {
+            _position = _videoController!.value.position;
+          });
+        } else if (_audioPlayer != null) {
+          _updateAudioPosition();
+        }
+      }
+    });
+  }
+
+  // Update audio position directly
+  void _updateAudioPosition() async {
+    if (_audioPlayer != null) {
+      final position = await _audioPlayer!.position;
+      if (mounted) {
+        setState(() {
+          _position = position;
+        });
+      }
+    }
   }
 }
 

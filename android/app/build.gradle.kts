@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mojarplayer.mojar_player_new"
+    namespace = "com.mojarcoder.mojar_player_pro"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // Specify your own unique Application ID
-        applicationId = "com.mojarplayer.mojar_player_new"
+        applicationId = "com.mojarcoder.mojar_player_pro"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

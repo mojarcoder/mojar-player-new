@@ -8,7 +8,7 @@
 PRODUCT_NAME = mojar_player_new
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.mojarPlayerNew
+PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojar_player_pro
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.

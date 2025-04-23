@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
-        android:label="Mojar Player"
+        android:label="Mojar Player Pro"
         android:name=".Application"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">

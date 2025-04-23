@@ -207,10 +207,8 @@ class _MediaControlsState extends State<MediaControls> {
         IconButton(
           icon: Icon(Icons.replay_10, color: iconColor),
           onPressed: () {
-            if (widget.onSeek != null && widget.position.inSeconds > 10) {
+            if (widget.onSeek != null) {
               widget.onSeek!(widget.position - const Duration(seconds: 10));
-            } else if (widget.onSeek != null) {
-              widget.onSeek!(Duration.zero);
             }
           },
           tooltip: '10s Backward',
@@ -443,10 +441,8 @@ class _MediaControlsState extends State<MediaControls> {
           title: 'Seek Backward 10s',
           icon: Icons.replay_10,
           onPressed: () {
-            if (widget.onSeek != null && widget.position.inSeconds > 10) {
+            if (widget.onSeek != null) {
               widget.onSeek!(widget.position - const Duration(seconds: 10));
-            } else if (widget.onSeek != null) {
-              widget.onSeek!(Duration.zero);
             }
           },
         ),

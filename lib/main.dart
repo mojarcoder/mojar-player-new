@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mojar Player',
+      title: 'Mojar Player Pro',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: primaryPink),
@@ -120,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Mojar Player',
+          'Mojar Player Pro',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: primaryPink,
@@ -191,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           const SizedBox(height: 20),
                           const Text(
-                            'Mojar Player',
+                            'Mojar Player Pro',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
