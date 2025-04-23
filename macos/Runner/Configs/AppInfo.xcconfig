@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = mojar_player_new
+PRODUCT_NAME = mojar_player_pro
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojar_player_pro

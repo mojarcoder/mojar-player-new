@@ -1,4 +1,4 @@
-package com.mojarplayer.mojar_player_new
+package com.mojarplayer.mojar_player_pro
 
 import androidx.multidex.MultiDexApplication
 import io.flutter.embedding.engine.FlutterEngine

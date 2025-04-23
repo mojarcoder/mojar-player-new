@@ -199,7 +199,7 @@ class _MediaControlsState extends State<MediaControls> {
             children: [
               Icon(Icons.help_outline, color: primaryColor),
               const SizedBox(width: 10),
-              Text('About Mojar Player', style: TextStyle(color: textColor)),
+              Text('About Mojar Player Pro', style: TextStyle(color: textColor)),
             ],
           ),
         ),

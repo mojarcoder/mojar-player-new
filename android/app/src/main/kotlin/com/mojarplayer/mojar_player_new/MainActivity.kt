@@ -1,4 +1,4 @@
-package com.mojarplayer.mojar_player_new
+package com.mojarplayer.mojar_player_pro
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -10,10 +10,10 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.FlutterEngineCache
-import com.mojarplayer.mojar_player_new.Application
+import com.mojarplayer.mojar_player_pro.Application
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.mojarplayer.mojar_player_new/system"
+    private val CHANNEL = "com.mojarplayer.mojar_player_pro/system"
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

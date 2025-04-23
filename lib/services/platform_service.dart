@@ -6,7 +6,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 /// A service to handle platform-specific functionality
 class PlatformService {
   static const MethodChannel _channel = MethodChannel(
-    'com.mojarplayer.mojar_player_new/system',
+    'com.mojarplayer.mojar_player_pro/system',
   );
   static bool _initialized = false;
 
