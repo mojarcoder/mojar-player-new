@@ -161,4 +161,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-For any questions or support, please open an issue on GitHub or contact the maintainers.
+For any questions or support, please use the following contact information:
+
+- **Email**: [mojarcoder@gmail.com](mailto:mojarcoder@gmail.com)
+- **WhatsApp**: [+8801640641524](https://wa.me/8801640641524)
+- **GitHub**: Open an issue on the GitHub repository
