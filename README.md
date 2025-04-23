@@ -68,7 +68,7 @@ flutter run -d windows
 
 The executable will be available at:
 ```
-build/windows/runner/Release/mojar_player_new.exe
+build/windows/runner/Release/mojar_player_pro.exe
 ```
 
 ## Building for macOS
@@ -97,7 +97,7 @@ flutter run -d macos
 
 The application will be available at:
 ```
-build/macos/Build/Products/Release/mojar_player_new.app
+build/macos/Build/Products/Release/mojar_player_pro.app
 ```
 
 ## Usage
