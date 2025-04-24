@@ -1,8 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Load key.properties file if it exists
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -19,6 +29,17 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            val storePath = keystoreProperties["storeFile"] as String
+            val userHomeDir = System.getProperty("user.home")  // Works on Windows, macOS, Linux
+            storeFile = File(userHomeDir, storePath)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+
     defaultConfig {
         // Specify your own unique Application ID
         applicationId = "com.mojarcoder.mojar_player_pro"
@@ -33,8 +54,8 @@ android {
 
     buildTypes {
         release {
-            // Add your own signing config for the release build
-            signingConfig = signingConfigs.getByName("debug")
+            // Use signing config for release
+            signingConfig = signingConfigs.getByName("release")
             
             // Enable minification for release builds
             isMinifyEnabled = true

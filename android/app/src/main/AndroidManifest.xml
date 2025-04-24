@@ -11,11 +11,11 @@
 
     <application
         android:label="Mojar Player Pro"
-        android:name=".Application"
+        android:name="com.mojarcoder.mojar_player_pro.Application"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
         <activity
-            android:name=".MainActivity"
+            android:name="com.mojarcoder.mojar_player_pro.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
