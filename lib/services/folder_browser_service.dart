@@ -270,9 +270,93 @@ class FolderBrowserService {
         dialogTitle: 'Select a folder',
       );
 
-      return selectedDirectory;
+      if (selectedDirectory != null) {
+        // Handle Android specific path issues
+        if (Platform.isAndroid) {
+          // Create default folders if no selection or if selection fails
+          if (selectedDirectory.isEmpty) {
+            // Try to get the pictures directory first
+            Directory? picturesDir;
+            try {
+              final externalDirs = await getExternalStorageDirectories();
+              final baseDir = externalDirs?.first.path.split('Android')[0];
+              if (baseDir != null) {
+                picturesDir = Directory('$baseDir/Pictures/Screenshots');
+                if (!await picturesDir.exists()) {
+                  await picturesDir.create(recursive: true);
+                }
+              }
+            } catch (e) {
+              debugPrint('Error creating pictures directory: $e');
+            }
+
+            // Fall back to documents directory if pictures fails
+            if (picturesDir == null) {
+              try {
+                final docsDir = await getApplicationDocumentsDirectory();
+                picturesDir = Directory('${docsDir.path}/Screenshots');
+                if (!await picturesDir.exists()) {
+                  await picturesDir.create(recursive: true);
+                }
+              } catch (e) {
+                debugPrint('Error creating documents directory: $e');
+              }
+            }
+
+            if (picturesDir != null) {
+              selectedDirectory = picturesDir.path;
+            }
+          }
+
+          // Verify the selected directory exists and is writable
+          final directory = Directory(selectedDirectory);
+          bool exists = await directory.exists();
+
+          if (!exists) {
+            try {
+              await directory.create(recursive: true);
+              exists = true;
+            } catch (e) {
+              debugPrint('Error creating directory: $e');
+            }
+          }
+
+          // Test write access by creating a temp file
+          if (exists) {
+            try {
+              final testFile = File('${directory.path}/.test_write_access');
+              await testFile.writeAsString('test');
+              await testFile.delete();
+            } catch (e) {
+              debugPrint('Directory is not writable: $e');
+              // Try to get a fallback directory
+              final docsDir = await getApplicationDocumentsDirectory();
+              return docsDir.path;
+            }
+          }
+        }
+
+        return selectedDirectory;
+      }
+
+      return null;
     } catch (e) {
       debugPrint('Error picking folder: $e');
+
+      // Fallback to a safe directory
+      if (Platform.isAndroid) {
+        try {
+          final docsDir = await getApplicationDocumentsDirectory();
+          final screenshotsDir = Directory('${docsDir.path}/Screenshots');
+          if (!await screenshotsDir.exists()) {
+            await screenshotsDir.create(recursive: true);
+          }
+          return screenshotsDir.path;
+        } catch (e) {
+          debugPrint('Error creating fallback directory: $e');
+        }
+      }
+
       return null;
     }
   }
