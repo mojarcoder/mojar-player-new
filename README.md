@@ -1,10 +1,16 @@
-# Mojar Player
+# Mojar Player Pro
 
 A modern media player app built with Flutter that supports both video and audio playback with a beautiful pink-themed UI.
 
 ## Features
 
 - **Video & Audio Playback**: Supports common media formats
+- **Audio Features**:
+  - Animated cassette visualization during audio playback
+  - Automatic album art detection from the audio file directory
+  - Custom album art setting option
+  - Audio equalizer and effects
+  - Visual waveform display
 - **Custom Controls**: 
   - Play/Pause, Stop
   - Next/Previous track
@@ -13,15 +19,22 @@ A modern media player app built with Flutter that supports both video and audio 
   - Volume control
   - Playback speed control
   - Aspect ratio adjustment
-  - Loop toggle
+  - Loop modes (None, Loop One, Loop All)
   - Playlist management
   - Screenshot functionality
 - **Context Menu** (Right-click or long press):
   - Media info
   - Subtitle support (SRT, VTT, ASS, SSA formats)
   - Audio synchronization
+  - Set custom album art for audio files
   - Take screenshot
   - About page
+- **Playlist Management**:
+  - Add multiple files to playlist
+  - Automatic playlist saving
+  - Smooth transition between audio and video tracks
+  - Shuffle and repeat options
+  - Easy navigation between tracks
 - **Beautiful UI**:
   - Pink color theme
   - Modern, clean design
@@ -123,6 +136,26 @@ build/macos/Build/Products/Release/mojar_player_pro.app
 3. Supported formats: SRT, VTT, ASS, SSA
 4. Use "Remove Subtitles" to disable them
 
+### Audio Features
+1. **Album Art**:
+   - The player automatically detects album art in the same directory as the audio file
+   - To set custom album art, right-click or long-press during audio playback
+   - Select "Set Album Art" from the context menu
+   - Choose an image file from your computer
+   - The custom album art will be saved and displayed whenever this audio file is played
+   - To remove custom album art, use the "Clear Custom Album Art" option
+
+2. **Audio Visualization**:
+   - When playing audio files with album art, the artwork is displayed
+   - Without album art, an animated cassette tape visualization is shown
+   - The cassette animation includes rotating spools that move in sync with playback
+   - Audio waveform visualization provides visual feedback of the audio
+
+3. **Repeat Modes**:
+   - No Loop: Plays through the playlist once
+   - Loop One: Repeats the current track indefinitely
+   - Loop All: Plays through the entire playlist and starts over
+
 ### Playlist Management
 - Add media files through the context menu
 - Drag and drop files to add to playlist
@@ -166,3 +199,15 @@ For any questions or support, please use the following contact information:
 - **Email**: [mojarcoder@gmail.com](mailto:mojarcoder@gmail.com)
 - **WhatsApp**: [+8801640641524](https://wa.me/8801640641524)
 - **GitHub**: Open an issue on the GitHub repository
+
+## Version Information
+
+Current version: 1.0.5
+
+### What's New in 1.0.5
+- Added custom album art setting feature
+- Improved audio visualization with animated cassette player
+- Enhanced playlist management with smooth transitions between audio and video
+- Added multiple loop modes (None, One, All)
+- Fixed issues when transitioning between audio and video tracks
+- Various UI improvements and bug fixes

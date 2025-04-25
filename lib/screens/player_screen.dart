@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
@@ -12,6 +13,8 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 import '../widgets/media_controls.dart';
 import '../widgets/context_menu.dart';
@@ -101,6 +104,178 @@ class _PlayerScreenState extends State<PlayerScreen>
     'Vocal Boost',
   ];
 
+  // Store custom album art paths for audio files
+  final Map<String, String> _customAlbumArtPaths = {};
+
+  // Get custom album art path for a file if it exists
+  String? _getCustomAlbumArtPath(String audioFilePath) {
+    return _customAlbumArtPaths[audioFilePath];
+  }
+
+  // Set custom album art for current audio file
+  Future<void> _setCustomAlbumArt() async {
+    if (!_isAudioFile(_playlist[_currentPlaylistIndex])) return;
+
+    try {
+      // Use FilePicker to select an image
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final imagePath = result.files.first.path;
+        if (imagePath != null) {
+          // Show preview dialog
+          if (mounted) {
+            final bool confirmed = await _showAlbumArtPreviewDialog(imagePath);
+            if (!confirmed) return; // User canceled
+          }
+
+          // Store the custom album art path for this audio file
+          setState(() {
+            _customAlbumArtPaths[_playlist[_currentPlaylistIndex]] = imagePath;
+          });
+
+          // Save the mapping to persistent storage
+          await _saveCustomAlbumArtMappings();
+
+          // Show confirmation
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Album art set successfully'),
+                backgroundColor: primaryPink,
+              ),
+            );
+          }
+
+          // Refresh the UI to show the new album art
+          setState(() {});
+        }
+      }
+    } catch (e) {
+      debugPrint('Error setting custom album art: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error setting album art: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Show a preview of the selected album art with confirmation
+  Future<bool> _showAlbumArtPreviewDialog(String imagePath) async {
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                backgroundColor: Colors.grey[900],
+                title: Text(
+                  'Confirm Album Art',
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      constraints: BoxConstraints(
+                        maxHeight: 300,
+                        maxWidth: 300,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          File(imagePath),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.red,
+                                size: 50,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    Text(
+                      'Use this image as album art?',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: TextButton.styleFrom(backgroundColor: primaryPink),
+                    child: Text(
+                      'Set as Album Art',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false; // Return false if dialog is dismissed
+  }
+
+  // Save custom album art mappings to persistent storage
+  Future<void> _saveCustomAlbumArtMappings() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/custom_album_art.json');
+
+      // Convert map to JSON string using proper encoding
+      final Map<String, dynamic> jsonMap = {};
+      _customAlbumArtPaths.forEach((key, value) {
+        jsonMap[key] = value;
+      });
+
+      final jsonString = json.encode(jsonMap);
+      await file.writeAsString(jsonString);
+
+      debugPrint('Custom album art mappings saved');
+    } catch (e) {
+      debugPrint('Error saving custom album art mappings: $e');
+    }
+  }
+
+  // Load custom album art mappings from persistent storage
+  Future<void> _loadCustomAlbumArtMappings() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/custom_album_art.json');
+
+      if (await file.exists()) {
+        final jsonString = await file.readAsString();
+        final Map<String, dynamic> jsonMap = json.decode(jsonString);
+
+        jsonMap.forEach((key, value) {
+          _customAlbumArtPaths[key] = value.toString();
+        });
+
+        debugPrint(
+          'Loaded ${_customAlbumArtPaths.length} custom album art mappings',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading custom album art mappings: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -131,6 +306,9 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // Start position update timer
     _startPositionUpdateTimer();
+
+    // Load custom album art mappings
+    _loadCustomAlbumArtMappings();
 
     // Load saved playlist
     _loadPlaylist().then((_) {
@@ -197,6 +375,11 @@ class _PlayerScreenState extends State<PlayerScreen>
       _videoController?.dispose();
       _audioPlayer?.dispose();
 
+      // Set controllers to null to avoid using disposed instances
+      _chewieController = null;
+      _videoController = null;
+      _audioPlayer = null;
+
       final isAudio = _isAudioFile(path);
 
       if (isAudio) {
@@ -231,9 +414,23 @@ class _PlayerScreenState extends State<PlayerScreen>
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error playing media: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error playing media: $e'),
+            action: SnackBarAction(
+              label: 'Try Again',
+              onPressed: () {
+                // Try to initialize again or skip to next item if available
+                if (_playlist.length > 1 &&
+                    _currentPlaylistIndex < _playlist.length - 1) {
+                  _skipToNext();
+                } else {
+                  _initializePlayer(path);
+                }
+              },
+            ),
+          ),
+        );
       }
     }
   }
@@ -414,13 +611,81 @@ class _PlayerScreenState extends State<PlayerScreen>
     }, onError: (e) => debugPrint('Player state changed error: $e'));
 
     _audioPlayer!.onPlayerComplete.listen((_) {
-      debugPrint('Audio playback completed');
-      if (_playlist.length > 1 &&
-          _currentPlaylistIndex < _playlist.length - 1 &&
-          _loopMode != LoopMode.one) {
-        _skipToNext();
+      debugPrint('Audio playback completed with loop mode: $_loopMode');
+
+      // Handle playback completion based on loop mode
+      if (_loopMode == LoopMode.one) {
+        // Loop the current track (already set in _changeLoopMode)
+        // Just seek back to start to ensure it works properly
+        _audioPlayer!.seek(Duration.zero);
+        _audioPlayer!.resume();
+      } else if (_loopMode == LoopMode.all && _playlist.length > 1) {
+        // Loop through the playlist
+        if (_currentPlaylistIndex < _playlist.length - 1) {
+          _skipToNext();
+        } else {
+          // Return to the first item
+          setState(() {
+            _currentPlaylistIndex = 0;
+          });
+          _initializePlayer(_playlist[0]);
+        }
+      } else if (_loopMode == LoopMode.none) {
+        // No looping, just go to next if available
+        if (_playlist.length > 1 &&
+            _currentPlaylistIndex < _playlist.length - 1) {
+          _skipToNext();
+        }
       }
     }, onError: (e) => debugPrint('Player complete error: $e'));
+  }
+
+  // Add video completion listener
+  void _videoPlayerListener() {
+    if (!mounted) return;
+
+    // Handle video completion based on loop mode
+    if (_videoController != null &&
+        _videoController!.value.position >= _videoController!.value.duration &&
+        !_videoController!.value.isPlaying) {
+      debugPrint('Video playback completed with loop mode: $_loopMode');
+
+      if (_loopMode == LoopMode.one) {
+        // Loop current video
+        _videoController!.seekTo(Duration.zero);
+        _videoController!.play();
+      } else if (_loopMode == LoopMode.all && _playlist.length > 1) {
+        // Loop through playlist
+        if (_currentPlaylistIndex < _playlist.length - 1) {
+          _skipToNext();
+        } else {
+          // Return to first track
+          setState(() {
+            _currentPlaylistIndex = 0;
+          });
+          _initializePlayer(_playlist[0]);
+        }
+      } else if (_loopMode == LoopMode.none) {
+        // No looping, just go to next if available
+        if (_playlist.length > 1 &&
+            _currentPlaylistIndex < _playlist.length - 1) {
+          _skipToNext();
+        }
+      }
+    }
+
+    // Update subtitle if available
+    if (_hasSubtitles) {
+      _updateCurrentSubtitle();
+    }
+
+    // Update position state
+    if (mounted && _videoController != null) {
+      setState(() {
+        _position = _videoController!.value.position;
+        _isPlaying = _videoController!.value.isPlaying;
+      });
+    }
   }
 
   // Show a snackbar for audio issues
@@ -497,42 +762,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         ),
       );
     }
-  }
-
-  void _videoPlayerListener() {
-    if (!mounted) return;
-
-    setState(() {
-      _position = _videoController!.value.position;
-      _isPlaying = _videoController!.value.isPlaying;
-    });
-
-    if (_hasSubtitles) {
-      _updateCurrentSubtitle();
-    }
-
-    // Handle playback completion
-    if (_videoController!.value.position >= _videoController!.value.duration) {
-      if (_playlist.length > 1 &&
-          _currentPlaylistIndex < _playlist.length - 1) {
-        _skipToNext();
-      }
-    }
-  }
-
-  // Controls visibility
-  void _startHideTimer() {
-    // Cancel any existing timer first
-    _hideControlsTimer?.cancel();
-
-    // Set a longer timeout for Android
-    _hideControlsTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          _showControls = false;
-        });
-      }
-    });
   }
 
   void _handleUserInteraction() {
@@ -818,6 +1047,26 @@ class _PlayerScreenState extends State<PlayerScreen>
                         _showSettingsDialog();
                       },
                     ),
+                    _buildContextMenuItem(
+                      icon: Icons.image,
+                      title: 'Set Album Art',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setCustomAlbumArt();
+                      },
+                    ),
+                    if (_getCustomAlbumArtPath(
+                          _playlist[_currentPlaylistIndex],
+                        ) !=
+                        null)
+                      _buildContextMenuItem(
+                        icon: Icons.image_not_supported,
+                        title: 'Clear Custom Album Art',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _clearCustomAlbumArt();
+                        },
+                      ),
                   ],
                   _buildContextMenuItem(
                     icon: Icons.help_outline,
@@ -2532,33 +2781,8 @@ class _PlayerScreenState extends State<PlayerScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 20),
-              // Album art placeholder (can be replaced with actual album art if available)
-              Container(
-                width: size.width * 0.7,
-                height: size.width * 0.7,
-                constraints: const BoxConstraints(
-                  maxWidth: 300,
-                  maxHeight: 300,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryPink.withOpacity(0.3),
-                      blurRadius: 15,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.music_note,
-                    size: size.width * 0.3,
-                    color: primaryPink,
-                  ),
-                ),
-              ),
+              // Album art or animated cassette
+              _buildAudioVisualization(size.width * 0.7),
               const SizedBox(height: 30),
               // Song title
               Padding(
@@ -2611,6 +2835,284 @@ class _PlayerScreenState extends State<PlayerScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Build audio visualization - either album art or animated cassette
+  Widget _buildAudioVisualization(double size) {
+    final currentFile = _playlist[_currentPlaylistIndex];
+
+    // Check for album art
+    Image? albumArt = _tryGetAlbumArt(currentFile);
+    final bool hasAlbumArt = albumArt != null;
+
+    return Container(
+      width: size,
+      height: size,
+      constraints: BoxConstraints(maxWidth: 300, maxHeight: 300),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: primaryPink.withOpacity(0.3),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child:
+          hasAlbumArt
+              ? _buildAlbumArt(albumArt)
+              : _buildAnimatedCassette(isPlaying: _isPlaying),
+    );
+  }
+
+  // Try to get album art from the audio file
+  Image? _tryGetAlbumArt(String filePath) {
+    try {
+      // First check if there's a custom album art set for this file
+      final customArtPath = _getCustomAlbumArtPath(filePath);
+      if (customArtPath != null && File(customArtPath).existsSync()) {
+        debugPrint('Custom album art found: $customArtPath');
+        return Image.file(File(customArtPath), fit: BoxFit.cover);
+      }
+
+      // Check if a matching image file exists in the same directory
+      final file = File(filePath);
+      final directory = file.parent;
+      final filename = file.path.split('/').last.split('\\').last;
+      final filenameWithoutExt = filename.split('.').first;
+
+      // Check for common album art filenames
+      final possibleArtFiles = [
+        'cover.jpg',
+        'cover.png',
+        'folder.jpg',
+        'folder.png',
+        'album.jpg',
+        'album.png',
+        '$filenameWithoutExt.jpg',
+        '$filenameWithoutExt.png',
+      ];
+
+      for (final artFile in possibleArtFiles) {
+        final potentialArtPath = '${directory.path}/$artFile';
+        if (File(potentialArtPath).existsSync()) {
+          debugPrint('Album art found: $potentialArtPath');
+          return Image.file(File(potentialArtPath), fit: BoxFit.cover);
+        }
+      }
+
+      // No album art found
+      return null;
+    } catch (e) {
+      debugPrint('Error looking for album art: $e');
+      return null;
+    }
+  }
+
+  // Album art display
+  Widget _buildAlbumArt([Image? albumArt]) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child:
+          albumArt ??
+          Image.asset(
+            'assets/images/default_album.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Center(
+                child: Icon(Icons.music_note, size: 100, color: primaryPink),
+              );
+            },
+          ),
+    );
+  }
+
+  // Animated cassette player
+  Widget _buildAnimatedCassette({required bool isPlaying}) {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.grey[800]!, Colors.grey[900]!],
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Cassette body
+          Container(
+            margin: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[600]!, width: 2),
+            ),
+          ),
+
+          // Label area
+          Container(
+            width: 120,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Center(
+              child: Text(
+                "MOJAR PLAYER",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+
+          // Spools - these will animate
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildAnimatedSpool(isPlaying, true),
+              SizedBox(width: 80),
+              _buildAnimatedSpool(isPlaying, false),
+            ],
+          ),
+
+          // Cassette holes
+          Positioned(
+            top: 50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildCassetteHole(),
+                SizedBox(width: 80),
+                _buildCassetteHole(),
+              ],
+            ),
+          ),
+
+          // Audio wave animation when playing
+          if (isPlaying)
+            Positioned(bottom: 30, child: _buildAudioWaveAnimation()),
+
+          // Play indicator
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isPlaying ? primaryPink : Colors.grey[600],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    isPlaying ? "PLAYING" : "PAUSED",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Single cassette spool that rotates when playing
+  Widget _buildAnimatedSpool(bool isPlaying, bool isLeft) {
+    return AnimatedRotation(
+      turns: isPlaying ? (isLeft ? 1.0 : -1.0) : 0.0,
+      duration: Duration(seconds: 3),
+      curve: Curves.linear,
+      // If playing, we want continuous rotation
+      onEnd:
+          isPlaying
+              ? () {
+                setState(() {
+                  // Force a rebuild to continue animation
+                });
+              }
+              : null,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey[400]!, width: 3),
+        ),
+        child: Center(
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: primaryPink.withOpacity(0.8),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Cassette hole
+  Widget _buildCassetteHole() {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey[700]!, width: 1),
+      ),
+    );
+  }
+
+  // Audio wave animation
+  Widget _buildAudioWaveAnimation() {
+    return SizedBox(
+      width: 120,
+      height: 30,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(8, (index) => _buildAudioBar(index)),
+      ),
+    );
+  }
+
+  // Individual animated audio bar
+  Widget _buildAudioBar(int index) {
+    // Randomize the animation to make it look more natural
+    final randomHeight = (math.Random().nextDouble() * 20) + 5;
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300 + (index * 50)),
+      width: 4,
+      height: _isPlaying ? randomHeight : 5,
+      decoration: BoxDecoration(
+        color: _isPlaying ? primaryPink : Colors.grey[600],
+        borderRadius: BorderRadius.circular(10),
       ),
     );
   }
@@ -3766,6 +4268,35 @@ class _PlayerScreenState extends State<PlayerScreen>
         debugPrint('Error updating audio position: $e');
       }
     }
+  }
+
+  // Controls visibility
+  void _startHideTimer() {
+    // Cancel any existing timer first
+    _hideControlsTimer?.cancel();
+
+    // Set a timer to hide controls after 5 seconds
+    _hideControlsTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          _showControls = false;
+        });
+      }
+    });
+  }
+
+  // Clear custom album art
+  void _clearCustomAlbumArt() {
+    setState(() {
+      _customAlbumArtPaths.remove(_playlist[_currentPlaylistIndex]);
+      _saveCustomAlbumArtMappings();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Custom album art cleared'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 }
 

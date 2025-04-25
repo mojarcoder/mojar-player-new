@@ -184,7 +184,7 @@ class _AboutScreenState extends State<AboutScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Mojar Player v1.0.0',
+                    'Mojar Player Pro v1.0.5',
                     style: TextStyle(fontSize: 16, color: darkPink),
                   ),
                   SizedBox(width: 5),

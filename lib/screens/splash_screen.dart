@@ -260,6 +260,14 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: const Text(
+                      'v1.0.5',
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   FadeTransition(
                     opacity: _fadeAnimation,
