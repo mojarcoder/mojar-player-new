@@ -209,7 +209,7 @@ Current version: 1.0.6
 - Enhanced context menu in landscape mode to prevent overflow
 - Improved folder browsing for all platforms (iOS, Android, Windows, macOS, Linux)
 - Bug fixes and performance improvements
-
+- set minSdk 21
 ### What's New in 1.0.5
 - Added custom album art setting feature
 - Improved audio visualization with animated cassette player
