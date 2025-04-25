@@ -944,148 +944,328 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   void _handleContextMenu(BuildContext context, Offset position) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.9),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 15),
-                    width: 40,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  _buildContextMenuItem(
-                    icon: Icons.folder_open,
-                    title: 'Open Media',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _openNewMedia();
-                    },
-                  ),
-                  _buildContextMenuItem(
-                    icon: Icons.playlist_play,
-                    title: _showPlaylist ? 'Hide Playlist' : 'Show Playlist',
-                    onTap: () {
-                      Navigator.pop(context);
-                      setState(() {
-                        _showPlaylist = !_showPlaylist;
-                      });
-                    },
-                  ),
-                  _buildContextMenuItem(
-                    icon: Icons.info_outline,
-                    title: 'Media Information',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showMediaInfo();
-                    },
-                  ),
-                  _buildContextMenuItem(
-                    icon: Icons.camera_alt,
-                    title: 'Take Screenshot',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _takeScreenshot();
-                    },
-                  ),
-                  if (!_isAudioFile(_playlist[_currentPlaylistIndex])) ...[
-                    _buildContextMenuItem(
-                      icon: Icons.subtitles,
-                      title:
-                          _hasSubtitles ? 'Remove Subtitles' : 'Add Subtitles',
-                      onTap: () {
-                        Navigator.pop(context);
-                        if (_hasSubtitles) {
-                          setState(() {
-                            _hasSubtitles = false;
-                            _subtitlePath = null;
-                            _subtitles.clear();
-                            _currentSubtitleIndex = -1;
-                          });
-                        } else {
-                          _addSubtitle();
-                        }
-                      },
-                    ),
-                    _buildContextMenuItem(
-                      icon: Icons.sync,
-                      title: 'Audio Sync',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showAudioSyncSettings();
-                      },
-                    ),
-                    _buildContextMenuItem(
-                      icon: Icons.aspect_ratio,
-                      title: 'Aspect Ratio',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showAspectRatioSettings();
-                      },
-                    ),
-                  ] else ...[
-                    _buildContextMenuItem(
-                      icon: Icons.audiotrack,
-                      title: 'Audio Settings',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showSettingsDialog();
-                      },
-                    ),
-                    _buildContextMenuItem(
-                      icon: Icons.image,
-                      title: 'Set Album Art',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setCustomAlbumArt();
-                      },
-                    ),
-                    if (_getCustomAlbumArtPath(
-                          _playlist[_currentPlaylistIndex],
-                        ) !=
-                        null)
-                      _buildContextMenuItem(
-                        icon: Icons.image_not_supported,
-                        title: 'Clear Custom Album Art',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _clearCustomAlbumArt();
-                        },
+    // Determine if we're in landscape mode based on screen dimensions
+    final screenSize = MediaQuery.of(context).size;
+    final isLandscape = screenSize.width > screenSize.height;
+
+    if (isLandscape) {
+      // In landscape mode, use a custom positioned menu that doesn't take full width
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder:
+            (context) => Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                width: screenSize.width * 0.6,
+                height: screenSize.height * 0.8,
+                margin: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Material(
+                    // Add Material widget here
+                    color: Colors.transparent,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 10, bottom: 15),
+                            width: 40,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.folder_open,
+                            title: 'Open Media',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _openNewMedia();
+                            },
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.playlist_play,
+                            title:
+                                _showPlaylist
+                                    ? 'Hide Playlist'
+                                    : 'Show Playlist',
+                            onTap: () {
+                              Navigator.pop(context);
+                              setState(() {
+                                _showPlaylist = !_showPlaylist;
+                              });
+                            },
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.info_outline,
+                            title: 'Media Information',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showMediaInfo();
+                            },
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.camera_alt,
+                            title: 'Take Screenshot',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _takeScreenshot();
+                            },
+                          ),
+                          if (!_isAudioFile(
+                            _playlist[_currentPlaylistIndex],
+                          )) ...[
+                            _buildContextMenuItem(
+                              icon: Icons.subtitles,
+                              title:
+                                  _hasSubtitles
+                                      ? 'Remove Subtitles'
+                                      : 'Add Subtitles',
+                              onTap: () {
+                                Navigator.pop(context);
+                                if (_hasSubtitles) {
+                                  setState(() {
+                                    _hasSubtitles = false;
+                                    _subtitlePath = null;
+                                    _subtitles.clear();
+                                    _currentSubtitleIndex = -1;
+                                  });
+                                } else {
+                                  _addSubtitle();
+                                }
+                              },
+                            ),
+                            _buildContextMenuItem(
+                              icon: Icons.sync,
+                              title: 'Audio Sync',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showAudioSyncSettings();
+                              },
+                            ),
+                            _buildContextMenuItem(
+                              icon: Icons.aspect_ratio,
+                              title: 'Aspect Ratio',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showAspectRatioSettings();
+                              },
+                            ),
+                          ] else ...[
+                            _buildContextMenuItem(
+                              icon: Icons.audiotrack,
+                              title: 'Audio Settings',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showSettingsDialog();
+                              },
+                            ),
+                            _buildContextMenuItem(
+                              icon: Icons.image,
+                              title: 'Set Album Art',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _setCustomAlbumArt();
+                              },
+                            ),
+                            if (_getCustomAlbumArtPath(
+                                  _playlist[_currentPlaylistIndex],
+                                ) !=
+                                null)
+                              _buildContextMenuItem(
+                                icon: Icons.image_not_supported,
+                                title: 'Clear Custom Album Art',
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _clearCustomAlbumArt();
+                                },
+                              ),
+                          ],
+                          _buildContextMenuItem(
+                            icon: Icons.help_outline,
+                            title: 'About',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AboutScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                  ],
-                  _buildContextMenuItem(
-                    icon: Icons.help_outline,
-                    title: 'About',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AboutScreen(),
-                        ),
-                      );
-                    },
+                    ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-    );
+      );
+    } else {
+      // Use standard bottom sheet for portrait mode
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder:
+            (context) => Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.9),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: SafeArea(
+                child: Material(
+                  // Add Material widget here
+                  color: Colors.transparent,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(top: 10, bottom: 15),
+                          width: 40,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        _buildContextMenuItem(
+                          icon: Icons.folder_open,
+                          title: 'Open Media',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _openNewMedia();
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          icon: Icons.playlist_play,
+                          title:
+                              _showPlaylist ? 'Hide Playlist' : 'Show Playlist',
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(() {
+                              _showPlaylist = !_showPlaylist;
+                            });
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          icon: Icons.info_outline,
+                          title: 'Media Information',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _showMediaInfo();
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          icon: Icons.camera_alt,
+                          title: 'Take Screenshot',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _takeScreenshot();
+                          },
+                        ),
+                        if (!_isAudioFile(
+                          _playlist[_currentPlaylistIndex],
+                        )) ...[
+                          _buildContextMenuItem(
+                            icon: Icons.subtitles,
+                            title:
+                                _hasSubtitles
+                                    ? 'Remove Subtitles'
+                                    : 'Add Subtitles',
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (_hasSubtitles) {
+                                setState(() {
+                                  _hasSubtitles = false;
+                                  _subtitlePath = null;
+                                  _subtitles.clear();
+                                  _currentSubtitleIndex = -1;
+                                });
+                              } else {
+                                _addSubtitle();
+                              }
+                            },
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.sync,
+                            title: 'Audio Sync',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showAudioSyncSettings();
+                            },
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.aspect_ratio,
+                            title: 'Aspect Ratio',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showAspectRatioSettings();
+                            },
+                          ),
+                        ] else ...[
+                          _buildContextMenuItem(
+                            icon: Icons.audiotrack,
+                            title: 'Audio Settings',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showSettingsDialog();
+                            },
+                          ),
+                          _buildContextMenuItem(
+                            icon: Icons.image,
+                            title: 'Set Album Art',
+                            onTap: () {
+                              Navigator.pop(context);
+                              _setCustomAlbumArt();
+                            },
+                          ),
+                          if (_getCustomAlbumArtPath(
+                                _playlist[_currentPlaylistIndex],
+                              ) !=
+                              null)
+                            _buildContextMenuItem(
+                              icon: Icons.image_not_supported,
+                              title: 'Clear Custom Album Art',
+                              onTap: () {
+                                Navigator.pop(context);
+                                _clearCustomAlbumArt();
+                              },
+                            ),
+                        ],
+                        _buildContextMenuItem(
+                          icon: Icons.help_outline,
+                          title: 'About',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AboutScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+      );
+    }
   }
 
   Widget _buildContextMenuItem({
