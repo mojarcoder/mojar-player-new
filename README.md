@@ -202,7 +202,13 @@ For any questions or support, please use the following contact information:
 
 ## Version Information
 
-Current version: 1.0.5
+Current version: 1.0.6
+
+### What's New in 1.0.6
+- Fixed media playback restart issue when playing audio/video after completion
+- Enhanced context menu in landscape mode to prevent overflow
+- Improved folder browsing for all platforms (iOS, Android, Windows, macOS, Linux)
+- Bug fixes and performance improvements
 
 ### What's New in 1.0.5
 - Added custom album art setting feature

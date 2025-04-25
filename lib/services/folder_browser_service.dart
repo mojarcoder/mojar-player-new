@@ -95,22 +95,36 @@ class FolderBrowserService {
     List<Directory> dirs = [];
 
     try {
-      // Get external storage directory
-      final directory = await getExternalStorageDirectory();
-      if (directory != null) {
-        // Go up to the root of Android storage
-        Directory? current = directory;
-        while (current != null && !current.path.endsWith('/Android')) {
-          if (current.path.endsWith('/0') ||
-              current.path.endsWith('/storage')) {
-            break;
-          }
-          current = current.parent;
-        }
+      // Add Internal Storage root
+      final Directory internalStorage = Directory('/storage/emulated/0');
+      if (await internalStorage.exists()) {
+        dirs.add(internalStorage);
+      }
 
-        if (current != null && current.existsSync()) {
-          dirs.add(current);
+      // Add External SD Card storage if available
+      try {
+        final List<Directory>? externalDirs =
+            await getExternalStorageDirectories();
+        if (externalDirs != null && externalDirs.isNotEmpty) {
+          for (var dir in externalDirs) {
+            // Navigate up to find the root of each storage
+            String path = dir.path;
+            final int androidIndex = path.indexOf('/Android');
+            if (androidIndex != -1) {
+              // Get the parent directory of Android folder
+              final String storageRoot = path.substring(0, androidIndex);
+              final Directory storageDir = Directory(storageRoot);
+
+              // Don't add if it's the same as internal storage
+              if (storageDir.path != internalStorage.path &&
+                  await storageDir.exists()) {
+                dirs.add(storageDir);
+              }
+            }
+          }
         }
+      } catch (e) {
+        debugPrint('Error accessing external storage: $e');
       }
 
       // Add common media directories
@@ -218,18 +232,152 @@ class FolderBrowserService {
     return dirs;
   }
 
+  // Get common directories for iOS
+  Future<List<Directory>> getCommonDirectoriesForIOS() async {
+    List<Directory> dirs = [];
+
+    try {
+      // Get documents directory
+      final docDir = await getApplicationDocumentsDirectory();
+      if (await docDir.exists()) {
+        dirs.add(docDir);
+      }
+
+      // Get temporary directory
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        dirs.add(tempDir);
+      }
+
+      // Get library directory
+      final libraryDir = await getLibraryDirectory();
+      if (await libraryDir.exists()) {
+        dirs.add(libraryDir);
+      }
+
+      // Get application support directory
+      final supportDir = await getApplicationSupportDirectory();
+      if (await supportDir.exists() && supportDir.path != libraryDir.path) {
+        dirs.add(supportDir);
+      }
+
+      // Get other common iOS directories
+      try {
+        final downloadsDir = Directory('${docDir.path}/../Downloads');
+        if (await downloadsDir.exists()) {
+          dirs.add(downloadsDir);
+        }
+
+        final moviesDir = Directory('${docDir.path}/../Movies');
+        if (await moviesDir.exists()) {
+          dirs.add(moviesDir);
+        }
+
+        final musicDir = Directory('${docDir.path}/../Music');
+        if (await musicDir.exists()) {
+          dirs.add(musicDir);
+        }
+
+        final picturesDir = Directory('${docDir.path}/../Pictures');
+        if (await picturesDir.exists()) {
+          dirs.add(picturesDir);
+        }
+      } catch (e) {
+        debugPrint('Error accessing iOS media directories: $e');
+      }
+    } catch (e) {
+      debugPrint('Error getting iOS directories: $e');
+    }
+
+    return dirs;
+  }
+
   // Get platform-specific common directories
   Future<List<Directory>> getCommonDirectories() async {
+    List<Directory> dirs = [];
+
     if (Platform.isAndroid) {
-      return getCommonDirectoriesForAndroid();
+      dirs = await getCommonDirectoriesForAndroid();
     } else if (Platform.isMacOS) {
-      return getCommonDirectoriesForMacOS();
+      dirs = await getCommonDirectoriesForMacOS();
     } else if (Platform.isWindows) {
-      return getCommonDirectoriesForWindows();
-    } else {
-      // For other platforms, return an empty list
-      return [];
+      dirs = await getCommonDirectoriesForWindows();
+    } else if (Platform.isIOS) {
+      dirs = await getCommonDirectoriesForIOS();
+    } else if (Platform.isLinux) {
+      dirs = await getCommonDirectoriesForLinux();
     }
+
+    // If no directories were found or on an unsupported platform,
+    // at least return the application documents directory
+    if (dirs.isEmpty) {
+      try {
+        final docDir = await getApplicationDocumentsDirectory();
+        if (await docDir.exists()) {
+          dirs.add(docDir);
+        }
+      } catch (e) {
+        debugPrint('Error getting fallback directory: $e');
+      }
+    }
+
+    return dirs;
+  }
+
+  // Get common directories for Linux
+  Future<List<Directory>> getCommonDirectoriesForLinux() async {
+    List<Directory> dirs = [];
+
+    try {
+      // Get home directory
+      final docs = await getApplicationDocumentsDirectory();
+      final homeDir = Directory(docs.path.split('/Documents')[0]);
+      if (await homeDir.exists()) {
+        dirs.add(homeDir);
+      }
+
+      // Common Linux directories
+      final List<String> commonPaths = [
+        '${homeDir.path}/Desktop',
+        '${homeDir.path}/Documents',
+        '${homeDir.path}/Downloads',
+        '${homeDir.path}/Music',
+        '${homeDir.path}/Pictures',
+        '${homeDir.path}/Videos',
+        '/media/${homeDir.path.split('/').last}', // External media mounted for user
+      ];
+
+      for (var path in commonPaths) {
+        final dir = Directory(path);
+        if (await dir.exists()) {
+          dirs.add(dir);
+        }
+      }
+
+      // Common system media locations
+      final List<String> systemPaths = ['/media', '/mnt'];
+
+      for (var path in systemPaths) {
+        final dir = Directory(path);
+        if (await dir.exists()) {
+          try {
+            // Add mounted media devices
+            final entities = await dir.list().toList();
+            for (var entity in entities) {
+              if (entity is Directory) {
+                dirs.add(entity);
+              }
+            }
+          } catch (e) {
+            debugPrint('Error listing system directory $path: $e');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting Linux directories: $e');
+    }
+
+    return dirs;
   }
 
   // Browse directory and return files/folders
@@ -395,14 +543,48 @@ class FolderBrowserService {
     final name = parts.last.isEmpty ? parts[parts.length - 2] : parts.last;
 
     // Make common path names more readable
-    if (name == '0') return 'Internal Storage';
-    if (name == 'emulated') return 'Internal Storage';
-    if (name == 'self') return 'Internal Storage';
-    if (name == 'Download') return 'Downloads';
+    if (Platform.isAndroid) {
+      if (path == '/storage/emulated/0') return 'Internal Storage';
+      if (name == '0' && path.contains('emulated')) return 'Internal Storage';
+      if (name == 'emulated') return 'Internal Storage';
+      if (name == 'self') return 'Internal Storage';
+
+      // External SD card
+      if (path.startsWith('/storage/') &&
+          !path.startsWith('/storage/emulated/') &&
+          !path.startsWith('/storage/self/')) {
+        if (parts.length >= 3) {
+          return 'SD Card (${name})';
+        }
+        return 'SD Card';
+      }
+    }
+
+    if (Platform.isIOS) {
+      if (path.endsWith('/Documents')) return 'Documents';
+      if (path.endsWith('/tmp')) return 'Temporary';
+      if (path.contains('/Library/')) return 'Library';
+    }
+
+    // Common names across platforms
+    if (name == 'Download' || name == 'Downloads') return 'Downloads';
+    if (name == 'Music') return 'Music';
+    if (name == 'Movies') return 'Movies';
+    if (name == 'Pictures') return 'Pictures';
+    if (name == 'Videos') return 'Videos';
+    if (name == 'DCIM') return 'Camera';
+    if (name == 'WhatsApp') return 'WhatsApp';
+    if (name == 'Media' && path.contains('WhatsApp')) return 'WhatsApp Media';
 
     // Handle Windows drive letter
     if (Platform.isWindows && path.endsWith(':\\')) {
       return '$name Drive';
+    }
+
+    // Handle Linux mounted devices
+    if (Platform.isLinux &&
+        (path.startsWith('/media/') || path.startsWith('/mnt/'))) {
+      return '$name (External)';
     }
 
     return name;

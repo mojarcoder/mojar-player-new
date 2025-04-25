@@ -777,12 +777,21 @@ class _PlayerScreenState extends State<PlayerScreen>
       if (_videoController!.value.isPlaying) {
         _videoController!.pause();
       } else {
+        // Check if video has ended and needs to be restarted
+        if (_videoController!.value.position >=
+            _videoController!.value.duration) {
+          _videoController!.seekTo(Duration.zero);
+        }
         _videoController!.play();
       }
     } else if (_audioPlayer != null) {
       if (_isPlaying) {
         _audioPlayer!.pause();
       } else {
+        // Check if audio has ended and needs to be restarted
+        if (_position >= _duration) {
+          _audioPlayer!.seek(Duration.zero);
+        }
         _audioPlayer!.resume();
       }
     }

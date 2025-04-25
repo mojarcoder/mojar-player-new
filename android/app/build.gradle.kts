@@ -43,7 +43,7 @@ android {
     defaultConfig {
         // Specify your own unique Application ID
         applicationId = "com.mojarcoder.mojar_player_pro"
-        minSdk = 24
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

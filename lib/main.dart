@@ -268,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen>
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Mojar Player v1.0.0',
+                                'Mojar Player Pro v1.0.6',
                                 style: TextStyle(fontSize: 16, color: darkPink),
                               ),
                               SizedBox(width: 5),
