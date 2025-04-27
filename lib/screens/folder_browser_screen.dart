@@ -136,7 +136,7 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
   }
 
   Future<void> _pickFolder() async {
-    final selectedDir = await _folderService.pickFolder();
+    final selectedDir = await _folderService.getDirectoryPath();
     if (selectedDir != null) {
       _browseDirectory(Directory(selectedDir));
     }

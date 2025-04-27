@@ -5,6 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:chewie/chewie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:media_kit/media_kit.dart';
+import 'dart:io';
 
 import 'screens/splash_screen.dart';
 import 'screens/folder_browser_screen.dart';
@@ -19,6 +21,7 @@ const Color lightPink = Color(0xFFFFB6C1);
 const Color darkPink = Color(0xFFE91E63);
 
 void main() async {
+  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
   // Set preferred orientations
@@ -30,6 +33,23 @@ void main() async {
 
   // Initialize platform services
   await PlatformService.initialize();
+
+  // Set locale to "C" for media_kit
+  if (Platform.isLinux) {
+    try {
+      final result = await Process.run('locale', ['-a']);
+      if (result.stdout.toString().contains('C.UTF-8')) {
+        await Process.run('export', ['LC_NUMERIC=C.UTF-8']);
+      } else {
+        await Process.run('export', ['LC_NUMERIC=C']);
+      }
+    } catch (e) {
+      debugPrint('Error setting locale: $e');
+    }
+  }
+
+  // Initialize media_kit
+  MediaKit.ensureInitialized();
 
   // Request permissions at startup
   final folderService = FolderBrowserService();
@@ -428,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _initializePlayer(String path) async {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => PlayerScreen(filePath: path)),
+      MaterialPageRoute(builder: (context) => PlayerScreen(videoPath: path)),
     );
   }
 
