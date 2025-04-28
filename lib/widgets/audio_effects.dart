@@ -4,7 +4,13 @@ import 'package:media_kit/media_kit.dart';
 class AudioEffects extends ChangeNotifier {
   static const List<double> _defaultEqValues = [0, 0, 0, 0, 0, 0, 0];
   static const List<String> _eqBands = [
-    '60Hz', '150Hz', '400Hz', '1kHz', '2.4kHz', '6kHz', '15kHz'
+    '60Hz',
+    '150Hz',
+    '400Hz',
+    '1kHz',
+    '2.4kHz',
+    '6kHz',
+    '15kHz'
   ];
 
   List<double> _eqValues = List.from(_defaultEqValues);
@@ -19,6 +25,8 @@ class AudioEffects extends ChangeNotifier {
 
   void setPlayer(Player player) {
     _player = player;
+    _isEnabled = true; // Enable effects by default when player is set
+    applyEffects(); // Apply effects immediately
   }
 
   Future<void> applyEffects() async {
@@ -27,15 +35,16 @@ class AudioEffects extends ChangeNotifier {
     try {
       if (_player?.platform is NativePlayer) {
         final List<String> filters = [];
-        
+
         // Add equalizer bands if any are non-zero
         if (_eqValues.any((value) => value != 0)) {
           final List<String> eqParams = [];
           for (int i = 0; i < _eqValues.length; i++) {
             if (_eqValues[i] != 0) {
               final freq = _eqFrequencies[i];
-              // Use the correct equalizer syntax with width=1 for narrow band
-              eqParams.add('equalizer=f=$freq:width_type=h:width=1:g=${_eqValues[i]}');
+              // Increase the width for more noticeable effect
+              eqParams.add(
+                  'equalizer=f=$freq:width_type=h:width=2:g=${_eqValues[i]}');
             }
           }
           if (eqParams.isNotEmpty) {
@@ -43,27 +52,37 @@ class AudioEffects extends ChangeNotifier {
           }
         }
 
-        // Add bass boost
+        // Add bass boost with stronger effect
         if (_bassBoost > 0) {
-          filters.add('bass=g=${(_bassBoost / 2).toStringAsFixed(1)}:f=100:width_type=h:width=0.5');
+          filters.add(
+              'bass=g=${(_bassBoost / 1.5).toStringAsFixed(1)}:f=100:width_type=h:width=1');
         }
 
-        // Add stereo widening (virtualizer)
+        // Add stereo widening (virtualizer) with stronger effect
         if (_virtualizer > 0) {
-          filters.add('stereotools=mlev=${(_virtualizer / 100).toStringAsFixed(2)}');
+          filters.add(
+              'stereotools=mlev=${(_virtualizer / 50).toStringAsFixed(2)}:slev=${(_virtualizer / 50).toStringAsFixed(2)}');
         }
 
-        // Add reverb
+        // Add reverb with stronger effect
         if (_reverb > 0) {
-          filters.add('aecho=0.8:0.8:${(_reverb / 100 * 50).toInt()}:0.5');
+          filters.add('aecho=0.8:0.8:${(_reverb / 50 * 100).toInt()}:0.5');
         }
 
         // Apply the filters
         final filterString = filters.isEmpty ? 'anull' : filters.join(',');
         debugPrint('Applying audio filters: $filterString');
-        
+
         // Use the correct API to set audio filters
-        await (_player?.platform as NativePlayer).setProperty('af', filterString);
+        await (_player?.platform as NativePlayer)
+            .setProperty('af', filterString);
+
+        // Pause and resume to ensure effects are applied
+        if (_player?.state.playing == true) {
+          await _player?.pause();
+          await Future.delayed(const Duration(milliseconds: 100));
+          await _player?.play();
+        }
       }
     } catch (e) {
       debugPrint('Error applying audio effects: $e');
@@ -74,7 +93,7 @@ class AudioEffects extends ChangeNotifier {
 
   Future<void> resetEffects() async {
     _isEnabled = false;
-    
+
     if (_player?.platform is NativePlayer) {
       await (_player?.platform as NativePlayer).setProperty('af', 'anull');
     }
@@ -127,7 +146,8 @@ class AudioEffects extends ChangeNotifier {
                         children: [
                           Text(
                             _eqBands[index],
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12),
                           ),
                           const SizedBox(height: 8),
                           RotatedBox(
@@ -139,10 +159,13 @@ class AudioEffects extends ChangeNotifier {
                                 min: -12,
                                 max: 12,
                                 divisions: 24,
-                                onChanged: _isEnabled ? (value) async {
-                                  setState(() => _eqValues[index] = value);
-                                  await applyEffects();
-                                } : null,
+                                onChanged: _isEnabled
+                                    ? (value) async {
+                                        setState(
+                                            () => _eqValues[index] = value);
+                                        await applyEffects();
+                                      }
+                                    : null,
                                 activeColor: const Color(0xFFFF4D8D),
                                 inactiveColor: Colors.white.withOpacity(0.3),
                               ),
@@ -150,7 +173,8 @@ class AudioEffects extends ChangeNotifier {
                           ),
                           Text(
                             '${_eqValues[index].toStringAsFixed(1)}dB',
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12),
                           ),
                         ],
                       );
@@ -199,7 +223,8 @@ class AudioEffects extends ChangeNotifier {
           ),
           title: Row(
             children: [
-              const Text('Audio Effects', style: TextStyle(color: Colors.white)),
+              const Text('Audio Effects',
+                  style: TextStyle(color: Colors.white)),
               const Spacer(),
               Switch(
                 value: _isEnabled,
@@ -324,4 +349,4 @@ class AudioEffects extends ChangeNotifier {
       ],
     );
   }
-} 
+}

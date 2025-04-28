@@ -11,7 +11,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:chewie/chewie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:typed_data';
-import 'package:audioplayers/audioplayers.dart' show AudioPlayer, Source, DeviceFileSource, UrlSource, BytesSource;
+import 'package:audioplayers/audioplayers.dart'
+    show AudioPlayer, Source, DeviceFileSource, UrlSource, BytesSource;
 import 'package:file_selector/file_selector.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
@@ -33,6 +34,7 @@ const Color darkPink = Color(0xFFE91E63);
 
 // Define enums for playback control
 enum PlaybackSpeed { x0_5, x0_75, x1_0, x1_25, x1_5, x2_0 }
+
 enum LoopMode { none, one, all }
 
 class PlayerScreen extends StatefulWidget {
@@ -49,7 +51,8 @@ class PlayerScreen extends StatefulWidget {
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderStateMixin {
+class _PlayerScreenState extends State<PlayerScreen>
+    with SingleTickerProviderStateMixin {
   late final Player _player;
   late final VideoController _controller;
   AudioPlayer? _audioPlayer;
@@ -62,7 +65,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   bool _isPlaying = false;
   bool _isMuted = false;
   double _volume = 1.0;
-  double _playbackSpeed = 1.0;
+  final double _playbackSpeed = 1.0;
   LoopMode _loopMode = LoopMode.none;
   bool _showControls = true;
   Timer? _hideControlsTimer;
@@ -75,9 +78,9 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   double _audioDelay = 0.0;
   List<SubtitleTrack> _subtitleTracks = [];
   int _currentSubtitleTrack = -1;
-  bool _isRepeatMode = false;
+  final bool _isRepeatMode = false;
   bool _isShuffleMode = false;
-  bool _isFullscreen = false;
+  final bool _isFullscreen = false;
   bool _isInitialized = false;
   String? _subtitlePath;
   bool _isLoading = true;
@@ -91,7 +94,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     _playlist = [widget.videoPath];
     _initializePlayer();
     _startHideControlsTimer();
-    
+
     // Initialize cassette animation
     _cassetteController = AnimationController(
       duration: const Duration(seconds: 2),
@@ -101,6 +104,13 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       begin: 0,
       end: 2 * math.pi,
     ).animate(_cassetteController);
+
+    // Listen for media completion
+    _player.stream.completed.listen((completed) {
+      if (!_disposed && mounted && completed) {
+        _handleMediaCompletion();
+      }
+    });
   }
 
   Future<void> _initializePlayer() async {
@@ -114,7 +124,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         media,
         play: true,
       );
-      
+
       if (widget.subtitlePath != null) {
         await _player.setSubtitleTrack(SubtitleTrack.uri(widget.subtitlePath!));
       }
@@ -137,17 +147,6 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         }
       });
 
-      _player.stream.completed.listen((completed) {
-        if (!_disposed && mounted && completed) {
-          if (_isRepeatMode) {
-            _player.seek(Duration.zero);
-            _player.play();
-          } else if (_currentPlaylistIndex < _playlist.length - 1) {
-            _playNext();
-          }
-        }
-      });
-
       _player.stream.tracks.listen((tracks) {
         if (!_disposed && mounted) {
           setState(() {
@@ -155,7 +154,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
           });
         }
       });
-      
+
       setState(() {
         _isInitialized = true;
         _isLoading = false;
@@ -188,16 +187,16 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
 
     // Cancel timer first
     _hideControlsTimer?.cancel();
-    
+
     // Stop animation
     if (_cassetteController.isAnimating) {
       _cassetteController.stop();
     }
     _cassetteController.dispose();
-    
+
     // Reset audio effects
     _audioEffects.resetEffects();
-    
+
     // Cleanup player
     try {
       if (_player.state.playing) {
@@ -212,7 +211,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     if (_disposed) return const SizedBox.shrink();
-    
+
     return WillPopScope(
       onWillPop: () async {
         if (!_disposed) {
@@ -251,7 +250,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
 
   Widget _buildControls() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -259,7 +258,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
             Colors.transparent,
             Colors.black54,
           ],
-          stops: const [0.7, 1.0],
+          stops: [0.7, 1.0],
         ),
       ),
       child: Column(
@@ -287,7 +286,9 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
               ),
               Expanded(
                 child: Slider(
-                  value: _position.inMilliseconds.toDouble(),
+                  value: _position.inMilliseconds
+                      .clamp(0, _duration.inMilliseconds)
+                      .toDouble(),
                   min: 0,
                   max: _duration.inMilliseconds.toDouble(),
                   onChanged: (value) {
@@ -338,7 +339,9 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next, color: Colors.white),
-                onPressed: _currentPlaylistIndex < _playlist.length - 1 ? _playNext : null,
+                onPressed: _currentPlaylistIndex < _playlist.length - 1
+                    ? _playNext
+                    : null,
               ),
               IconButton(
                 icon: const Icon(Icons.exit_to_app, color: Colors.white),
@@ -360,7 +363,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
           child: Row(
             children: [
               IconButton(
-                icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up, color: Colors.white),
+                icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white),
                 onPressed: () {
                   setState(() => _isMuted = !_isMuted);
                   _player.setVolume(_isMuted ? 0 : _volume * 100);
@@ -443,30 +447,66 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   }
 
   List<PopupMenuItem<String>> _buildContextMenuItems(BuildContext context) {
-    final isVideo = _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp4') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mkv') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.avi');
-    final isAudio = _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp3') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
+    final isVideo =
+        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp4') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mkv') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.avi');
+    final isAudio =
+        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp3') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
 
     final menuItems = <PopupMenuItem<String>>[
       PopupMenuItem(
         value: 'open',
-        child: Row(
-          children: const [
+        onTap: _openMedia,
+        child: const Row(
+          children: [
             Icon(Icons.folder_open, color: Colors.white),
             SizedBox(width: 8),
             Text('Open Media', style: TextStyle(color: Colors.white)),
           ],
         ),
-        onTap: _openMedia,
+      ),
+      PopupMenuItem(
+        value: 'playlist',
+        child: const Row(
+          children: [
+            Icon(Icons.playlist_play, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Playlist Settings', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        onTap: () => _showPlaylistSettings(),
+      ),
+      if (isVideo) // Only show aspect ratio for video files
+        PopupMenuItem(
+          value: 'aspect',
+          child: const Row(
+            children: [
+              Icon(Icons.aspect_ratio, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Aspect Ratio', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          onTap: () => _showAspectRatioDialog(),
+        ),
+      PopupMenuItem(
+        value: 'audio',
+        child: const Row(
+          children: [
+            Icon(Icons.audiotrack, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Audio Effects', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        onTap: () => _showAudioSettings(),
       ),
       PopupMenuItem(
         value: 'info',
-        child: Row(
-          children: const [
+        child: const Row(
+          children: [
             Icon(Icons.info_outline, color: Colors.white),
             SizedBox(width: 8),
             Text('File Info', style: TextStyle(color: Colors.white)),
@@ -480,8 +520,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       menuItems.add(
         PopupMenuItem(
           value: 'album_art',
-          child: Row(
-            children: const [
+          child: const Row(
+            children: [
               Icon(Icons.image, color: Colors.white),
               SizedBox(width: 8),
               Text('Set Album Art', style: TextStyle(color: Colors.white)),
@@ -496,8 +536,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         menuItems.add(
           PopupMenuItem(
             value: 'clear_album_art',
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 Icon(Icons.clear, color: Colors.white),
                 SizedBox(width: 8),
                 Text('Clear Album Art', style: TextStyle(color: Colors.white)),
@@ -523,8 +563,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       menuItems.add(
         PopupMenuItem(
           value: 'subtitles',
-          child: Row(
-            children: const [
+          child: const Row(
+            children: [
               Icon(Icons.subtitles, color: Colors.white),
               SizedBox(width: 8),
               Text('Subtitles', style: TextStyle(color: Colors.white)),
@@ -539,8 +579,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     menuItems.addAll([
       PopupMenuItem(
         value: 'audio_sync',
-        child: Row(
-          children: const [
+        child: const Row(
+          children: [
             Icon(Icons.sync, color: Colors.white),
             SizedBox(width: 8),
             Text('Audio Sync', style: TextStyle(color: Colors.white)),
@@ -549,20 +589,9 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         onTap: () => _showAudioSyncDialog(),
       ),
       PopupMenuItem(
-        value: 'audio_settings',
-        child: Row(
-          children: const [
-            Icon(Icons.audiotrack, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Audio Settings', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        onTap: () => _showAudioSettings(),
-      ),
-      PopupMenuItem(
         value: 'about',
-        child: Row(
-          children: const [
+        child: const Row(
+          children: [
             Icon(Icons.info, color: Colors.white),
             SizedBox(width: 8),
             Text('About', style: TextStyle(color: Colors.white)),
@@ -575,6 +604,528 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     return menuItems;
   }
 
+  void _showPlaylistSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Playlist Settings'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text('Shuffle Playlist'),
+                  trailing: Switch(
+                    value: _isShuffleMode,
+                    onChanged: (value) async {
+                      setState(() => _isShuffleMode = value);
+                      if (value) {
+                        await _shufflePlaylist();
+                      } else {
+                        await _unshufflePlaylist();
+                      }
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Loop Mode'),
+                  trailing: DropdownButton<LoopMode>(
+                    value: _loopMode,
+                    items: const [
+                      DropdownMenuItem(
+                          value: LoopMode.none, child: Text('None')),
+                      DropdownMenuItem(value: LoopMode.all, child: Text('All')),
+                      DropdownMenuItem(value: LoopMode.one, child: Text('One')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _loopMode = value;
+                        });
+                        if (mounted) {
+                          setState(() {});
+                        }
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showPlaylistDialog();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryPink,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Manage Playlist'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAspectRatioDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Aspect Ratio'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('16:9 (Widescreen)'),
+              onTap: () {
+                setState(() => _aspectRatio = 16 / 9);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('4:3 (Standard)'),
+              onTap: () {
+                setState(() => _aspectRatio = 4 / 3);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('21:9 (UltraWide)'),
+              onTap: () {
+                setState(() => _aspectRatio = 21 / 9);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('1:1 (Square)'),
+              onTap: () {
+                setState(() => _aspectRatio = 1);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('2.39:1 (Cinema)'),
+              onTap: () {
+                setState(() => _aspectRatio = 2.39);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaDisplay() {
+    final isAudio =
+        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp3') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
+
+    if (isAudio) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_albumArtPath != null)
+              Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(
+                    image: FileImage(File(_albumArtPath!)),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              )
+            else
+              AnimatedBuilder(
+                animation: _cassetteAnimation,
+                builder: (context, child) {
+                  return Container(
+                    width: 300,
+                    height: 300,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: primaryPink.withOpacity(0.5), width: 2),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Cassette body
+                        Container(
+                          width: 250,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white24, width: 1),
+                          ),
+                        ),
+                        // Rotating reels
+                        Positioned(
+                          left: 70,
+                          child: Transform.rotate(
+                            angle: _cassetteAnimation.value,
+                            child: Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: primaryPink, width: 2),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 15,
+                                  height: 15,
+                                  decoration: const BoxDecoration(
+                                    color: primaryPink,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Second reel
+                        Positioned(
+                          right: 70,
+                          child: Transform.rotate(
+                            angle:
+                                -_cassetteAnimation.value, // Opposite rotation
+                            child: Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: primaryPink, width: 2),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 15,
+                                  height: 15,
+                                  decoration: const BoxDecoration(
+                                    color: primaryPink,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Label area
+                        Positioned(
+                          bottom: 85,
+                          child: Container(
+                            width: 180,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.music_note,
+                                color: primaryPink,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            const SizedBox(height: 20),
+            Text(
+              _playlist[_currentPlaylistIndex].split('/').last,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = constraints.maxWidth;
+            final screenHeight = constraints.maxHeight;
+            final targetHeight = screenWidth / _aspectRatio;
+
+            return Container(
+              width: screenWidth,
+              height: targetHeight > screenHeight ? screenHeight : targetHeight,
+              child: Video(controller: _controller),
+            );
+          },
+        ),
+      );
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return duration.inHours > 0
+        ? '$hours:$minutes:$seconds'
+        : '$minutes:$seconds';
+  }
+
+  void _playPrevious() async {
+    if (_currentPlaylistIndex > 0) {
+      setState(() => _currentPlaylistIndex--);
+      await _initializeNewMedia(_playlist[_currentPlaylistIndex]);
+    }
+  }
+
+  void _playNext() async {
+    if (_currentPlaylistIndex < _playlist.length - 1) {
+      setState(() => _currentPlaylistIndex++);
+      await _initializeNewMedia(_playlist[_currentPlaylistIndex]);
+    }
+  }
+
+  void _seekRelative(Duration duration) {
+    final newPosition = _position + duration;
+    if (newPosition < Duration.zero) {
+      _player.seek(Duration.zero);
+    } else if (newPosition > _duration) {
+      _player.seek(_duration);
+    } else {
+      _player.seek(newPosition);
+    }
+  }
+
+  void _showAboutScreen() async {
+    if (_disposed) return;
+
+    // Store current playing state
+    final wasPlaying = _player.state.playing;
+
+    // Pause playback before navigation
+    if (wasPlaying) {
+      _player.pause();
+    }
+
+    if (!mounted || _disposed) return;
+
+    try {
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (context) => const AboutScreen()),
+      );
+
+      // Only resume if we actually returned from the About screen
+      if (result == true && mounted && !_disposed && wasPlaying) {
+        _player.play();
+      }
+    } catch (e) {
+      debugPrint('Navigation error: $e');
+    }
+  }
+
+  void _showPlaylistDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Playlist'),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _openMedia().then((_) {
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _playlist.length,
+                itemBuilder: (context, index) {
+                  final filename = _playlist[index].split('/').last;
+                  return ListTile(
+                    leading: Icon(
+                      index == _currentPlaylistIndex
+                          ? Icons.play_arrow
+                          : Icons.music_note,
+                      color:
+                          index == _currentPlaylistIndex ? primaryPink : null,
+                    ),
+                    title: Text(
+                      filename,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color:
+                            index == _currentPlaylistIndex ? primaryPink : null,
+                        fontWeight: index == _currentPlaylistIndex
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          if (index == _currentPlaylistIndex) {
+                            // If removing current playing item
+                            if (_playlist.length > 1) {
+                              // If there are other items in playlist
+                              _playlist.removeAt(index);
+                              if (index == _playlist.length) {
+                                // If it was the last item
+                                _currentPlaylistIndex--;
+                              }
+                              _initializeNewMedia(
+                                      _playlist[_currentPlaylistIndex])
+                                  .then((_) {
+                                if (mounted) {
+                                  setState(() {});
+                                }
+                              });
+                            } else {
+                              // If it's the only item
+                              _playlist.clear();
+                              _currentPlaylistIndex = 0;
+                              _player.pause();
+                            }
+                          } else {
+                            // If removing another item
+                            _playlist.removeAt(index);
+                            if (index < _currentPlaylistIndex) {
+                              _currentPlaylistIndex--;
+                            }
+                          }
+                        });
+                        if (mounted) {
+                          setState(() {});
+                        }
+                      },
+                    ),
+                    onTap: () {
+                      if (index != _currentPlaylistIndex) {
+                        setState(() => _currentPlaylistIndex = index);
+                        _initializeNewMedia(_playlist[index]).then((_) {
+                          if (mounted) {
+                            setState(() {});
+                          }
+                        });
+                      }
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAudioSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => _audioEffects.buildAudioEffectsDialog(context),
+    );
+  }
+
+  void _showFileInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('File Information'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: ${_playlist[_currentPlaylistIndex].split('/').last}'),
+            const SizedBox(height: 8),
+            Text('Duration: ${_formatDuration(_duration)}'),
+            const SizedBox(height: 8),
+            Text('Current Position: ${_formatDuration(_position)}'),
+            const SizedBox(height: 8),
+            Text('Aspect Ratio: ${_aspectRatio.toStringAsFixed(2)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shufflePlaylist() async {
+    if (_playlist.length > 1) {
+      final currentItem = _playlist[_currentPlaylistIndex];
+      final shuffledList = List<String>.from(_playlist)
+        ..removeAt(_currentPlaylistIndex);
+      shuffledList.shuffle();
+      setState(() {
+        _playlist = [currentItem, ...shuffledList];
+        _currentPlaylistIndex = 0;
+      });
+      // Update player playlist by opening the new current item
+      await _player.open(Media(_playlist[_currentPlaylistIndex]));
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  Future<void> _unshufflePlaylist() async {
+    // Reset to original order
+    setState(() {
+      _isShuffleMode = false;
+    });
+    // Update player by opening the current item
+    await _player.open(Media(_playlist[_currentPlaylistIndex]));
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _openMedia() async {
     try {
       const XTypeGroup typeGroup = XTypeGroup(
@@ -582,7 +1133,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         extensions: ['mp4', 'mkv', 'avi', 'mp3', 'wav', 'flac', 'm4a'],
       );
       final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
-      
+
       if (file != null) {
         // Add to playlist if not already present
         if (!_playlist.contains(file.path)) {
@@ -633,6 +1184,30 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         _isLoading = false;
         _error = e.toString();
       });
+    }
+  }
+
+  Future<void> _setAlbumArt() async {
+    try {
+      const XTypeGroup typeGroup = XTypeGroup(
+        label: 'Image Files',
+        extensions: ['jpg', 'jpeg', 'png'],
+      );
+      final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
+
+      if (file != null) {
+        setState(() {
+          _albumArtPath = file.path;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Album art set successfully'),
+            backgroundColor: primaryPink,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error setting album art: $e');
     }
   }
 
@@ -735,166 +1310,14 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
   }
 
-  void _showAudioSettings() {
-    showDialog(
-      context: context,
-      builder: (context) => _audioEffects.buildAudioEffectsDialog(context),
-    );
-  }
-
-  void _showPlaylistDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Playlist'),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                Navigator.pop(context);
-                _openMedia();
-              },
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _playlist.length,
-            itemBuilder: (context, index) {
-              final filename = _playlist[index].split('/').last;
-              return ListTile(
-                leading: Icon(
-                  index == _currentPlaylistIndex
-                      ? Icons.play_arrow
-                      : Icons.music_note,
-                  color: index == _currentPlaylistIndex ? primaryPink : null,
-                ),
-                title: Text(
-                  filename,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: index == _currentPlaylistIndex ? primaryPink : null,
-                    fontWeight: index == _currentPlaylistIndex 
-                        ? FontWeight.bold 
-                        : FontWeight.normal,
-                  ),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  onPressed: () {
-                    setState(() {
-                      if (index == _currentPlaylistIndex) {
-                        // If removing current playing item
-                        if (_playlist.length > 1) {
-                          // If there are other items in playlist
-                          _playlist.removeAt(index);
-                          if (index == _playlist.length) {
-                            // If it was the last item
-                            _currentPlaylistIndex--;
-                          }
-                          _initializeNewMedia(_playlist[_currentPlaylistIndex]);
-                        } else {
-                          // If it's the only item
-                          _playlist.clear();
-                          _currentPlaylistIndex = 0;
-                          _player.pause();
-                        }
-                      } else {
-                        // If removing another item
-                        _playlist.removeAt(index);
-                        if (index < _currentPlaylistIndex) {
-                          _currentPlaylistIndex--;
-                        }
-                      }
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                onTap: () async {
-                  if (index != _currentPlaylistIndex) {
-                    setState(() => _currentPlaylistIndex = index);
-                    await _initializeNewMedia(_playlist[index]);
-                  }
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFileInfoDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('File Information'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Name: ${_playlist[_currentPlaylistIndex].split('/').last}'),
-            const SizedBox(height: 8),
-            Text('Duration: ${_formatDuration(_duration)}'),
-            const SizedBox(height: 8),
-            Text('Current Position: ${_formatDuration(_position)}'),
-            const SizedBox(height: 8),
-            Text('Aspect Ratio: ${_aspectRatio.toStringAsFixed(2)}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _setAlbumArt() async {
-    try {
-      const XTypeGroup typeGroup = XTypeGroup(
-        label: 'Image Files',
-        extensions: ['jpg', 'jpeg', 'png'],
-      );
-      final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
-
-      if (file != null) {
-        setState(() {
-          _albumArtPath = file.path;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Album art set successfully'),
-            backgroundColor: primaryPink,
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error setting album art: $e');
-    }
-  }
-
   void _applyAudioDelay() {
     try {
       // Get current position
       final currentPosition = _player.state.position;
 
       // Calculate adjusted position based on audio delay
-      final adjustedPosition = currentPosition + Duration(milliseconds: (_audioDelay * 1000).toInt());
+      final adjustedPosition = currentPosition +
+          Duration(milliseconds: (_audioDelay * 1000).toInt());
 
       // Ensure the position is within valid bounds
       final validPosition = adjustedPosition < Duration.zero
@@ -935,8 +1358,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
               _audioDelay < 0
                   ? Icons.fast_forward
                   : _audioDelay > 0
-                  ? Icons.fast_rewind
-                  : Icons.sync,
+                      ? Icons.fast_rewind
+                      : Icons.sync,
               color: Colors.white,
               size: 16,
             ),
@@ -954,210 +1377,26 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildMediaDisplay() {
-    final isAudio = _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp3') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
-                    _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
-
-    if (isAudio) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (_albumArtPath != null)
-              Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: FileImage(File(_albumArtPath!)),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              )
-            else
-              AnimatedBuilder(
-                animation: _cassetteAnimation,
-                builder: (context, child) {
-                  return Container(
-                    width: 300,
-                    height: 300,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: primaryPink.withOpacity(0.5), width: 2),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Cassette body
-                        Container(
-                          width: 250,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white24, width: 1),
-                          ),
-                        ),
-                        // Rotating reels
-                        Positioned(
-                          left: 70,
-                          child: Transform.rotate(
-                            angle: _cassetteAnimation.value,
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: primaryPink, width: 2),
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 15,
-                                  height: 15,
-                                  decoration: BoxDecoration(
-                                    color: primaryPink,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Second reel
-                        Positioned(
-                          right: 70,
-                          child: Transform.rotate(
-                            angle: -_cassetteAnimation.value, // Opposite rotation
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: primaryPink, width: 2),
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 15,
-                                  height: 15,
-                                  decoration: BoxDecoration(
-                                    color: primaryPink,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Label area
-                        Positioned(
-                          bottom: 85,
-                          child: Container(
-                            width: 180,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.white10,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.music_note,
-                                color: primaryPink,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            const SizedBox(height: 20),
-            Text(
-              _playlist[_currentPlaylistIndex].split('/').last,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Center(
-        child: AspectRatio(
-          aspectRatio: _aspectRatio,
-          child: Video(controller: _controller),
-        ),
-      );
-    }
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final hours = twoDigits(duration.inHours);
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return duration.inHours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
-  }
-
-  void _playPrevious() async {
-    if (_currentPlaylistIndex > 0) {
-      setState(() => _currentPlaylistIndex--);
-      await _initializeNewMedia(_playlist[_currentPlaylistIndex]);
-    }
-  }
-
-  void _playNext() async {
-    if (_currentPlaylistIndex < _playlist.length - 1) {
-      setState(() => _currentPlaylistIndex++);
-      await _initializeNewMedia(_playlist[_currentPlaylistIndex]);
-    }
-  }
-
-  void _seekRelative(Duration duration) {
-    final newPosition = _position + duration;
-    if (newPosition < Duration.zero) {
-      _player.seek(Duration.zero);
-    } else if (newPosition > _duration) {
-      _player.seek(_duration);
-    } else {
-      _player.seek(newPosition);
-    }
-  }
-
-  void _showAboutScreen() async {
-    if (_disposed) return;
-    
-    // Store current playing state
-    final wasPlaying = _player.state.playing;
-    
-    // Pause playback before navigation
-    if (wasPlaying) {
-      _player.pause();
-    }
-
-    if (!mounted || _disposed) return;
-
-    try {
-      final result = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (context) => const AboutScreen()),
-      );
-
-      // Only resume if we actually returned from the About screen
-      if (result == true && mounted && !_disposed && wasPlaying) {
+  void _handleMediaCompletion() {
+    switch (_loopMode) {
+      case LoopMode.one:
+        // Loop current track
+        _player.seek(Duration.zero);
         _player.play();
-      }
-    } catch (e) {
-      debugPrint('Navigation error: $e');
+        break;
+      case LoopMode.all:
+        // Play next track or loop to first if at end
+        if (_currentPlaylistIndex < _playlist.length - 1) {
+          _playNext();
+        } else {
+          setState(() => _currentPlaylistIndex = 0);
+          _initializeNewMedia(_playlist[0]);
+        }
+        break;
+      case LoopMode.none:
+        // Stop playback
+        _player.pause();
+        break;
     }
   }
 
