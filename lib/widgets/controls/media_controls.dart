@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import 'package:just_audio/just_audio.dart';
-import 'dart:io';
 import 'dart:async';
 
 class PlayerProvider {
@@ -140,7 +137,7 @@ class _MediaControlsState extends State<MediaControls> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     final isDark = widget.isDarkMode;
-    final primaryColor = Colors.pink;
+    const primaryColor = Colors.pink;
     final backgroundColor = isDark ? Colors.grey[900] : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
 
@@ -199,7 +196,10 @@ class _MediaControlsState extends State<MediaControls> {
             children: [
               Icon(Icons.help_outline, color: primaryColor),
               const SizedBox(width: 10),
-              Text('About Mojar Player Pro', style: TextStyle(color: textColor)),
+              Text(
+                'About Mojar Player Pro',
+                style: TextStyle(color: textColor),
+              ),
             ],
           ),
         ),
@@ -245,7 +245,7 @@ class _MediaControlsState extends State<MediaControls> {
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
     final theme = Theme.of(context);
-    final primaryColor = Colors.pink;
+    const primaryColor = Colors.pink;
     final secondaryColor = isDark ? Colors.pink[200] : Colors.pink[300];
     final backgroundColor =
         isDark ? Colors.black.withOpacity(0.7) : Colors.white.withOpacity(0.7);
