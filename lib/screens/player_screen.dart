@@ -723,11 +723,39 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Widget _buildMediaDisplay() {
+    if (_playlist.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.playlist_remove, size: 64, color: Colors.white54),
+            SizedBox(height: 16),
+            Text(
+              'No media in playlist',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Add media files to start playing',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final isAudio =
         _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp3') ||
-            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
-            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
-            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
+        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
+        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
+        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
 
     if (isAudio) {
       return Center(
@@ -1008,8 +1036,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                 // If it was the last item
                                 _currentPlaylistIndex--;
                               }
-                              _initializeNewMedia(
-                                      _playlist[_currentPlaylistIndex])
+                              _initializeNewMedia(_playlist[_currentPlaylistIndex])
                                   .then((_) {
                                 if (mounted) {
                                   setState(() {});
@@ -1020,6 +1047,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                               _playlist.clear();
                               _currentPlaylistIndex = 0;
                               _player.pause();
+                              // Close the dialog and return to home screen
+                              Navigator.of(context).pop(); // Close dialog
+                              Navigator.of(context).pop(); // Return to home screen
                             }
                           } else {
                             // If removing another item

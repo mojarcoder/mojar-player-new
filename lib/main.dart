@@ -34,20 +34,6 @@ void main() async {
   // Initialize platform services
   await PlatformService.initialize();
 
-  // Set locale to "C" for media_kit
-  if (Platform.isLinux) {
-    try {
-      final result = await Process.run('locale', ['-a']);
-      if (result.stdout.toString().contains('C.UTF-8')) {
-        await Process.run('export', ['LC_NUMERIC=C.UTF-8']);
-      } else {
-        await Process.run('export', ['LC_NUMERIC=C']);
-      }
-    } catch (e) {
-      debugPrint('Error setting locale: $e');
-    }
-  }
-
   // Initialize media_kit
   MediaKit.ensureInitialized();
 
