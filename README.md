@@ -1,18 +1,84 @@
 # Mojar Player Pro
 
-A modern and feature-rich media player built with Flutter that supports both audio and video playback.
+A professional media player with modern interface and advanced playback capabilities.
+
+## Installation
+
+You can install Mojar Player Pro using either the .deb package (for Debian/Ubuntu-based systems) or the AppImage (for any Linux distribution).
+
+### Installing with .deb package (Debian/Ubuntu)
+
+1. Download the `mojar-player-pro_1.0.6.deb` package
+2. Open terminal and navigate to the download directory
+3. Install using one of these methods:
+
+   **Method 1:** Using the package manager:
+   ```bash
+   sudo apt install ./mojar-player-pro_1.0.6.deb
+   ```
+
+   **Method 2:** Using dpkg:
+   ```bash
+   sudo dpkg -i mojar-player-pro_1.0.6.deb
+   sudo apt-get install -f  # Install any missing dependencies
+   ```
+
+After installation, you can:
+- Find "Mojar Player Pro" in your applications menu
+- Launch it from the terminal with `mojar_player_pro`
+- Search for it in your system's application launcher
+
+### Using AppImage (Any Linux Distribution)
+
+1. Download the `mojar_player_pro.AppImage`
+2. Make it executable:
+   ```bash
+   chmod +x mojar_player_pro.AppImage
+   ```
+3. Run it:
+   ```bash
+   ./mojar_player_pro.AppImage
+   ```
+
+**Optional:** To integrate the AppImage with your system:
+1. Move it to a permanent location:
+   ```bash
+   mkdir -p ~/Applications
+   mv mojar_player_pro.AppImage ~/Applications/
+   ```
+2. Create a desktop shortcut:
+   ```bash
+   wget https://raw.githubusercontent.com/mojarcoder/mojar-player-pro/main/app.png -O ~/.local/share/icons/mojar-player-pro.png
+   ```
+   Create a desktop entry file:
+   ```bash
+   echo "[Desktop Entry]
+   Type=Application
+   Name=Mojar Player Pro
+   Comment=Professional Media Player
+   Exec=$HOME/Applications/mojar_player_pro.AppImage
+   Icon=$HOME/.local/share/icons/mojar-player-pro.png
+   Categories=AudioVideo;Player;
+   Terminal=false" > ~/.local/share/applications/mojar-player-pro.desktop
+   ```
+
+## System Requirements
+
+- Linux operating system
+- x86_64 architecture
+- GTK 3.0 or later
+- GLib 2.0 or later
 
 ## Features
 
-- 🎵 Audio playback support (MP3, WAV, FLAC, M4A)
-- 🎥 Video playback support (MP4, MKV, AVI)
-- 📝 Playlist management
-- 🎨 Beautiful UI with animations
-- 🎛️ Audio effects and equalizer
-- 📺 Video subtitle support
-- 🖼️ Custom album art support
-- ⚡ Fast and responsive
-- 💻 Cross-platform support (Windows, macOS, Linux)
+- Modern and intuitive user interface
+- Support for various media formats
+- Advanced playback controls
+- Hardware-accelerated video playback (where available)
+
+## Support
+
+For issues and feature requests, please visit our [GitHub repository](https://github.com/mojarcoder/mojar-player-pro/issues).
 
 ## Dependencies
 
@@ -42,32 +108,6 @@ dependencies:
   # Platform integration
   url_launcher: ^6.2.4                  # URL handling
 ```
-
-## System Requirements
-
-### Windows
-- Windows 10 or later
-- Microsoft Visual C++ Redistributable
-
-### macOS
-- macOS 10.14 or later
-- Xcode (for development)
-
-### Linux
-- Ubuntu 20.04 or later
-- Required packages:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y \
-    libmpv-dev \
-    mpv \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    gstreamer1.0-plugins-base \
-    gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad \
-    gstreamer1.0-plugins-ugly
-  ```
 
 ## Setup Instructions
 
