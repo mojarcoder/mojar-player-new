@@ -11,126 +11,161 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _heartbeatAnimation;
+  late final AnimationController _controller;
+  late final Animation<double> _heartbeatAnimation;
+  bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Create animation controller for heartbeat effect
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    // Heartbeat animation
-    _heartbeatAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _initializeAnimation();
   }
 
-  @override
-  void dispose() {
+  void _initializeAnimation() {
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _heartbeatAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+
+    if (!_disposed && mounted) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  void _handleBack(BuildContext context) {
+    if (_disposed) return;
+    _disposed = true;
+    
+    if (_controller.isAnimating) {
+      _controller.stop();
+    }
     _controller.dispose();
-    super.dispose();
+    
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_disposed) return const SizedBox.shrink();
+
     // Love-inspired color scheme
     const Color primaryPink = Color(0xFFFF4D8D);
     const Color lightPink = Color(0xFFFFB6C1);
     const Color darkPink = Color(0xFFE91E63);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'About',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: primaryPink,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [primaryPink, Colors.white],
-            stops: const [0.0, 0.3],
+    return WillPopScope(
+      onWillPop: () async {
+        if (!_disposed) {
+          _disposed = true;
+          if (_controller.isAnimating) {
+            _controller.stop();
+          }
+          _controller.dispose();
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFF4D8D),
+          elevation: 0,
+          leading: BackButton(
+            color: Colors.white,
+            onPressed: () => _handleBack(context),
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [primaryPink, Colors.white],
+              stops: [0.0, 0.3],
+            ),
+          ),
+          child: ListView(
+            padding: const EdgeInsets.all(16.0),
             children: [
               const SizedBox(height: 20),
-              // Animated heartbeat logo
-              AnimatedBuilder(
-                animation: _heartbeatAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _heartbeatAnimation.value,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Heart shape background
-                        Icon(Icons.favorite, size: 150, color: darkPink),
-                        // Profile image
-                        CircleAvatar(
-                          radius: 55,
-                          backgroundImage: const AssetImage(
-                            'assets/images/profile.jpg',
-                          ),
-                          backgroundColor: lightPink,
-                          onBackgroundImageError: (_, __) {
-                            return;
-                          },
+              // Animated heartbeat logo with RepaintBoundary
+              RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _heartbeatAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _heartbeatAnimation.value,
+                      child: child,
+                    );
+                  },
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Heart shape background
+                      const Icon(Icons.favorite, size: 150, color: darkPink),
+                      // Profile image
+                      CircleAvatar(
+                        radius: 55,
+                        backgroundImage: const AssetImage(
+                          'assets/images/profile.jpg',
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Mojar Coder',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: darkPink,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Made with ♥ for music lovers',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: darkPink,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 30),
-              Container(
-                height: 2,
-                width: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.transparent, darkPink, Colors.transparent],
+                        backgroundColor: lightPink,
+                        onBackgroundImageError: (_, __) {},
+                      ),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Connect with me',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: darkPink,
+              const Center(
+                child: Text(
+                  'Mojar Coder',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: darkPink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Center(
+                child: Text(
+                  'Made with ♥ for music lovers',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: darkPink,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Center(
+                child: Container(
+                  height: 2,
+                  width: 100,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.transparent, darkPink, Colors.transparent],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Center(
+                child: Text(
+                  'Connect with me',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: darkPink,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -170,12 +205,14 @@ class _AboutScreenState extends State<AboutScreen>
                 color: primaryPink,
               ),
               const SizedBox(height: 30),
-              Container(
-                height: 2,
-                width: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.transparent, darkPink, Colors.transparent],
+              Center(
+                child: Container(
+                  height: 2,
+                  width: 100,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.transparent, darkPink, Colors.transparent],
+                    ),
                   ),
                 ),
               ),
@@ -192,9 +229,11 @@ class _AboutScreenState extends State<AboutScreen>
                 ],
               ),
               const SizedBox(height: 8),
-              const Text(
-                '© 2024 Mojar Coder. All rights reserved.',
-                style: TextStyle(fontSize: 14, color: darkPink),
+              const Center(
+                child: Text(
+                  '© 2024 Mojar Coder. All rights reserved.',
+                  style: TextStyle(fontSize: 14, color: darkPink),
+                ),
               ),
               const SizedBox(height: 20),
             ],
@@ -211,34 +250,36 @@ class _AboutScreenState extends State<AboutScreen>
     required String url,
     required Color color,
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: BorderSide(color: color.withOpacity(0.3), width: 1),
-      ),
-      child: InkWell(
-        onTap: () => _launchUrl(url),
-        borderRadius: BorderRadius.circular(15),
-        splashColor: color.withOpacity(0.1),
-        child: Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+    return RepaintBoundary(
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: BorderSide(color: color.withOpacity(0.3), width: 1),
+        ),
+        child: InkWell(
+          onTap: () => _launchUrl(url),
+          borderRadius: BorderRadius.circular(15),
+          splashColor: color.withOpacity(0.1),
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: FaIcon(icon, color: color),
               ),
-              child: FaIcon(icon, color: color),
+              title: Text(
+                title,
+                style: TextStyle(fontWeight: FontWeight.bold, color: color),
+              ),
+              subtitle: Text(subtitle),
+              trailing: Icon(Icons.arrow_forward_ios, size: 16, color: color),
             ),
-            title: Text(
-              title,
-              style: TextStyle(fontWeight: FontWeight.bold, color: color),
-            ),
-            subtitle: Text(subtitle),
-            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: color),
           ),
         ),
       ),
@@ -246,6 +287,7 @@ class _AboutScreenState extends State<AboutScreen>
   }
 
   Future<void> _launchUrl(String url) async {
+    if (_disposed) return;
     try {
       final Uri uri = Uri.parse(url);
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {

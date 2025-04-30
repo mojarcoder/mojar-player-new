@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -37,57 +37,15 @@ class FolderBrowserService {
 
   // Check and request permissions based on platform
   Future<bool> checkPermissions() async {
-    bool hasPermission = false;
-
     if (Platform.isAndroid) {
-      try {
-        // Check Android version using our platform service
-        final isAndroid13Plus = await PlatformService.isAndroid13OrHigher();
-
-        if (isAndroid13Plus) {
-          // Android 13+: Need Photos, Videos, and Audio permissions
-          final videoStatus = await Permission.videos.status;
-          final audioStatus = await Permission.audio.status;
-          final photosStatus = await Permission.photos.status;
-
-          if (videoStatus.isDenied ||
-              audioStatus.isDenied ||
-              photosStatus.isDenied) {
-            await Permission.videos.request();
-            await Permission.audio.request();
-            await Permission.photos.request();
-          }
-
-          hasPermission =
-              await Permission.videos.isGranted &&
-              await Permission.audio.isGranted &&
-              await Permission.photos.isGranted;
-        } else {
-          // Below Android 13: Need Storage permission
-          final storageStatus = await Permission.storage.status;
-
-          if (storageStatus.isDenied) {
-            await Permission.storage.request();
-            // For all files access on Android 11+
-            if ((await DeviceInfoPlugin().androidInfo).version.sdkInt >= 30) {
-              await Permission.manageExternalStorage.request();
-            }
-          }
-
-          hasPermission = await Permission.storage.isGranted;
-        }
-      } catch (e) {
-        debugPrint('Error checking permissions: $e');
+      final status = await Permission.storage.status;
+      if (status != PermissionStatus.granted) {
+        final result = await Permission.storage.request();
+        return result == PermissionStatus.granted;
       }
-    } else if (Platform.isIOS) {
-      // iOS has permission handling through the file picker
-      hasPermission = true;
-    } else {
-      // Desktop platforms don't need runtime permissions
-      hasPermission = true;
+      return true;
     }
-
-    return hasPermission;
+    return true;
   }
 
   // Get common directories for Android
@@ -411,130 +369,35 @@ class FolderBrowserService {
     return files;
   }
 
-  // Use file_picker to select a folder
-  Future<String?> pickFolder() async {
+  // Use file_selector to select a folder
+  Future<String?> getDirectoryPath() async {
     try {
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Select a folder',
-      );
-
-      if (selectedDirectory != null) {
-        // Handle Android specific path issues
-        if (Platform.isAndroid) {
-          // Create default folders if no selection or if selection fails
-          if (selectedDirectory.isEmpty) {
-            // Try to get the pictures directory first
-            Directory? picturesDir;
-            try {
-              final externalDirs = await getExternalStorageDirectories();
-              final baseDir = externalDirs?.first.path.split('Android')[0];
-              if (baseDir != null) {
-                picturesDir = Directory('$baseDir/Pictures/Screenshots');
-                if (!await picturesDir.exists()) {
-                  await picturesDir.create(recursive: true);
-                }
-              }
-            } catch (e) {
-              debugPrint('Error creating pictures directory: $e');
-            }
-
-            // Fall back to documents directory if pictures fails
-            if (picturesDir == null) {
-              try {
-                final docsDir = await getApplicationDocumentsDirectory();
-                picturesDir = Directory('${docsDir.path}/Screenshots');
-                if (!await picturesDir.exists()) {
-                  await picturesDir.create(recursive: true);
-                }
-              } catch (e) {
-                debugPrint('Error creating documents directory: $e');
-              }
-            }
-
-            if (picturesDir != null) {
-              selectedDirectory = picturesDir.path;
-            }
-          }
-
-          // Verify the selected directory exists and is writable
-          final directory = Directory(selectedDirectory);
-          bool exists = await directory.exists();
-
-          if (!exists) {
-            try {
-              await directory.create(recursive: true);
-              exists = true;
-            } catch (e) {
-              debugPrint('Error creating directory: $e');
-            }
-          }
-
-          // Test write access by creating a temp file
-          if (exists) {
-            try {
-              final testFile = File('${directory.path}/.test_write_access');
-              await testFile.writeAsString('test');
-              await testFile.delete();
-            } catch (e) {
-              debugPrint('Directory is not writable: $e');
-              // Try to get a fallback directory
-              final docsDir = await getApplicationDocumentsDirectory();
-              return docsDir.path;
-            }
-          }
-        }
-
-        return selectedDirectory;
-      }
-
-      return null;
+      final String? selectedDirectory = await getDirectoryPath();
+      return selectedDirectory;
     } catch (e) {
-      debugPrint('Error picking folder: $e');
-
-      // Fallback to a safe directory
-      if (Platform.isAndroid) {
-        try {
-          final docsDir = await getApplicationDocumentsDirectory();
-          final screenshotsDir = Directory('${docsDir.path}/Screenshots');
-          if (!await screenshotsDir.exists()) {
-            await screenshotsDir.create(recursive: true);
-          }
-          return screenshotsDir.path;
-        } catch (e) {
-          debugPrint('Error creating fallback directory: $e');
-        }
-      }
-
+      print('Error picking directory: $e');
       return null;
     }
   }
 
-  // Use file_picker to select multiple media files
+  // Use file_selector to select multiple media files
   Future<List<String>> pickMediaFiles() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions:
-            mediaExtensions.map((e) => e.replaceFirst('.', '')).toList(),
-        allowMultiple: true,
+      const XTypeGroup typeGroup = XTypeGroup(
+        label: 'Media Files',
+        extensions: ['mp4', 'mkv', 'avi', 'mp3', 'wav', 'flac'],
       );
-
-      if (result != null) {
-        return result.paths
-            .where((path) => path != null)
-            .map((path) => path!)
-            .toList();
-      }
+      final List<XFile> files = await openFiles(acceptedTypeGroups: [typeGroup]);
+      return files.map((file) => file.path).toList();
     } catch (e) {
-      debugPrint('Error picking files: $e');
+      print('Error picking files: $e');
+      return [];
     }
-
-    return [];
   }
 
   // Get file details like name, size
   String getFileName(String path) {
-    return path.split(Platform.isWindows ? '\\' : '/').last;
+    return path.split(Platform.pathSeparator).last;
   }
 
   String getDirectoryName(String path) {
@@ -554,7 +417,7 @@ class FolderBrowserService {
           !path.startsWith('/storage/emulated/') &&
           !path.startsWith('/storage/self/')) {
         if (parts.length >= 3) {
-          return 'SD Card (${name})';
+          return 'SD Card ($name)';
         }
         return 'SD Card';
       }
@@ -606,7 +469,14 @@ class FolderBrowserService {
 
   // Check if a path is a media file
   bool isMediaFile(String path) {
-    final extension = path.toLowerCase().split('.').last;
-    return mediaExtensions.any((ext) => ext.endsWith(extension));
+    final extension = getFileExtension(path);
+    if (extension == null) return false;
+    
+    return mediaExtensions.contains(extension.toLowerCase());
+  }
+
+  String? getFileExtension(String path) {
+    final parts = path.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : null;
   }
 }

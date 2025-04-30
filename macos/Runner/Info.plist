@@ -25,7 +25,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2024. All rights reserved.</string>
+	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
@@ -33,7 +33,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to the microphone for audio playback.</string>
+	<string>Microphone access is required for audio effects processing</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to the camera for video playback.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
@@ -46,5 +46,11 @@
 	<string>This app needs access to pictures for media playback.</string>
 	<key>NSMoviesFolderUsageDescription</key>
 	<string>This app needs access to movies for media playback.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Access to music library is required to play your media files</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Access to photo library is required to set album art</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.music</string>
 </dict>
 </plist>

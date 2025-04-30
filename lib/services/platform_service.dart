@@ -15,6 +15,24 @@ class PlatformService {
     if (_initialized) return;
 
     try {
+      // Set up a method channel handler for testing the connection
+      _channel.setMethodCallHandler((call) async {
+        debugPrint('Received method call from platform: ${call.method}');
+        if (call.method == 'ping') {
+          return 'pong';
+        }
+        return null;
+      });
+
+      // Test the channel connection
+      try {
+        await _channel.invokeMethod<bool>('ping');
+        debugPrint('Platform channel connection successful');
+      } catch (e) {
+        debugPrint('Platform channel connection test failed: $e');
+        // Continue anyway as the platform might not implement ping
+      }
+
       // Initialize platform-specific features
       if (Platform.isAndroid) {
         // Check if any initialization is needed
@@ -25,6 +43,8 @@ class PlatformService {
       } else if (Platform.isWindows) {
         // Windows-specific initialization
         debugPrint('Windows platform service initialized');
+      } else if (Platform.isLinux) {
+        debugPrint('Linux platform service initialized');
       }
 
       _initialized = true;
@@ -63,5 +83,59 @@ class PlatformService {
       }
     }
     return false;
+  }
+
+  static Future<bool> enterFullscreen() async {
+    try {
+      final result = await _channel.invokeMethod('enterFullscreen');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error entering fullscreen: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> exitFullscreen() async {
+    try {
+      final result = await _channel.invokeMethod('exitFullscreen');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error exiting fullscreen: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> toggleFullscreen() async {
+    try {
+      // Make sure the platform service is initialized
+      if (!_initialized) {
+        await initialize();
+      }
+      
+      debugPrint('Sending toggleFullscreen to platform');
+      final result = await _channel.invokeMethod('toggleFullscreen');
+      debugPrint('Received toggleFullscreen result: $result');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error toggling fullscreen: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> isFullscreen() async {
+    try {
+      // Make sure the platform service is initialized
+      if (!_initialized) {
+        await initialize();
+      }
+      
+      debugPrint('Sending isFullscreen to platform');
+      final result = await _channel.invokeMethod('isFullscreen');
+      debugPrint('Received isFullscreen result: $result');
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error checking fullscreen state: $e');
+      return false;
+    }
   }
 }

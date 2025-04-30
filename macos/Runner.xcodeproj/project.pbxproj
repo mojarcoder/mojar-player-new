@@ -479,8 +479,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojar_player_pro.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojarplayerpro;
+				PRODUCT_NAME = "Mojar Player Pro";
+				PRODUCT_COPYRIGHT = "Copyright © 2024 Mojar Coder. All rights reserved.";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/mojar_player_new.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/mojar_player_new";
 			};
@@ -494,8 +495,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojar_player_pro.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojarplayerpro;
+				PRODUCT_NAME = "Mojar Player Pro";
+				PRODUCT_COPYRIGHT = "Copyright © 2024 Mojar Coder. All rights reserved.";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/mojar_player_new.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/mojar_player_new";
 			};
@@ -509,8 +511,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojar_player_pro.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mojarcoder.mojarplayerpro;
+				PRODUCT_NAME = "Mojar Player Pro";
+				PRODUCT_COPYRIGHT = "Copyright © 2024 Mojar Coder. All rights reserved.";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/mojar_player_new.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/mojar_player_new";
 			};
