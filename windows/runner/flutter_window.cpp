@@ -185,6 +185,20 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         return 0;
       }
       break;
+    // Handle double-click on title bar area for fullscreen toggle
+    case WM_NCLBUTTONDBLCLK:
+      if (HTCAPTION == wparam && is_fullscreen_) {
+        ExitFullscreen();
+        return 0;
+      }
+      break;
+    // Handle double-click anywhere to exit fullscreen
+    case WM_LBUTTONDBLCLK:
+      if (is_fullscreen_) {
+        ExitFullscreen();
+        return 0;
+      }
+      break;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

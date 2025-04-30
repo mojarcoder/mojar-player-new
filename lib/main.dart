@@ -14,6 +14,7 @@ import 'screens/about_screen.dart';
 import 'screens/player_screen.dart';
 import 'services/folder_browser_service.dart';
 import 'services/platform_service.dart';
+import 'widgets/shortcut_item.dart';
 
 // Love-inspired color scheme
 const Color primaryPink = Color(0xFFFF4D8D);
@@ -166,6 +167,13 @@ class _HomeScreenState extends State<HomeScreen>
         backgroundColor: primaryPink,
         elevation: 0,
         actions: [
+          // Add keyboard shortcuts button
+          IconButton(
+            icon: const Icon(Icons.keyboard, size: 20),
+            onPressed: _showKeyboardShortcuts,
+            tooltip: 'Keyboard Shortcuts',
+            color: Colors.white,
+          ),
           // Add exit fullscreen button if in fullscreen mode
           if (_isFullscreen)
             IconButton(
@@ -193,153 +201,165 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       // Add keyboard listener for ESC key to exit fullscreen
       body: KeyboardListener(
-        focusNode: FocusNode(),
+        focusNode: FocusNode()..requestFocus(),
+        autofocus: true,
         onKeyEvent: (event) {
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.escape &&
-              _isFullscreen) {
-            _exitFullscreen();
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.escape &&
+                _isFullscreen) {
+              _exitFullscreen();
+            } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+              _toggleFullscreen();
+            }
           }
         },
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: primaryPink),
-              )
-            : _chewieController != null
-                ? Chewie(controller: _chewieController!)
-                : Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [primaryPink, Colors.white],
-                        stops: [0.0, 0.3],
+        child: GestureDetector(
+          // Add double-tap to exit fullscreen
+          onDoubleTap: () {
+            if (_isFullscreen) {
+              _exitFullscreen();
+            }
+          },
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: primaryPink),
+                )
+              : _chewieController != null
+                  ? Chewie(controller: _chewieController!)
+                  : Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [primaryPink, Colors.white],
+                          stops: [0.0, 0.3],
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: GestureDetector(
-                        onLongPress: () => _showContextMenu(context),
-                        onSecondaryTap: () => _showContextMenu(context),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 20),
-                              // Animated heartbeat logo
-                              AnimatedBuilder(
-                                animation: _heartbeatAnimation,
-                                builder: (context, child) {
-                                  return Transform.scale(
-                                    scale: _heartbeatAnimation.value,
-                                    child: Hero(
-                                      tag: 'profileImage',
-                                      child: CircleAvatar(
-                                        radius: 60,
-                                        backgroundColor: lightPink,
-                                        backgroundImage: const AssetImage(
-                                          'assets/images/profile.jpg',
+                      child: Center(
+                        child: GestureDetector(
+                          onLongPress: () => _showContextMenu(context),
+                          onSecondaryTap: () => _showContextMenu(context),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 20),
+                                // Animated heartbeat logo
+                                AnimatedBuilder(
+                                  animation: _heartbeatAnimation,
+                                  builder: (context, child) {
+                                    return Transform.scale(
+                                      scale: _heartbeatAnimation.value,
+                                      child: Hero(
+                                        tag: 'profileImage',
+                                        child: CircleAvatar(
+                                          radius: 60,
+                                          backgroundColor: lightPink,
+                                          backgroundImage: const AssetImage(
+                                            'assets/images/profile.jpg',
+                                          ),
+                                          onBackgroundImageError: (_, __) {},
                                         ),
-                                        onBackgroundImageError: (_, __) {},
                                       ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 20),
+                                const Text(
+                                  'Mojar Player Pro',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: darkPink,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Play your media files with ease',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: darkPink,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Container(
+                                  height: 2,
+                                  width: 100,
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.transparent,
+                                        darkPink,
+                                        Colors.transparent,
+                                      ],
                                     ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              const Text(
-                                'Mojar Player Pro',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: darkPink,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Play your media files with ease',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: darkPink,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Container(
-                                height: 2,
-                                width: 100,
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.transparent,
-                                      darkPink,
-                                      Colors.transparent,
-                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 30),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _buildActionButton(
-                                    icon: Icons.folder_open,
-                                    label: 'Open Media',
-                                    onPressed: _openFile,
-                                  ),
-                                  const SizedBox(width: 20),
-                                  _buildActionButton(
-                                    icon: Icons.folder,
-                                    label: 'Browse Folders',
-                                    onPressed: _browseLocalFolders,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 30),
-                              const Text(
-                                'Connect with us',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: darkPink,
+                                const SizedBox(height: 30),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _buildActionButton(
+                                      icon: Icons.folder_open,
+                                      label: 'Open Media',
+                                      onPressed: _openFile,
+                                    ),
+                                    const SizedBox(width: 20),
+                                    _buildActionButton(
+                                      icon: Icons.folder,
+                                      label: 'Browse Folders',
+                                      onPressed: _browseLocalFolders,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 20),
-                              _buildSocialLinks(),
-                              const SizedBox(height: 20),
-                              Container(
-                                height: 2,
-                                width: 100,
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.transparent,
-                                      darkPink,
-                                      Colors.transparent,
-                                    ],
+                                const SizedBox(height: 30),
+                                const Text(
+                                  'Connect with us',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: darkPink,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 20),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Mojar Player Pro v1.0.6',
-                                    style: TextStyle(
-                                        fontSize: 16, color: darkPink),
+                                const SizedBox(height: 20),
+                                _buildSocialLinks(),
+                                const SizedBox(height: 20),
+                                Container(
+                                  height: 2,
+                                  width: 100,
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.transparent,
+                                        darkPink,
+                                        Colors.transparent,
+                                      ],
+                                    ),
                                   ),
-                                  SizedBox(width: 5),
-                                  Icon(Icons.favorite,
-                                      size: 16, color: darkPink),
-                                ],
-                              ),
-                              const SizedBox(height: 30),
-                            ],
+                                ),
+                                const SizedBox(height: 20),
+                                const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Mojar Player Pro v1.0.6',
+                                      style: TextStyle(
+                                          fontSize: 16, color: darkPink),
+                                    ),
+                                    SizedBox(width: 5),
+                                    Icon(Icons.favorite,
+                                        size: 16, color: darkPink),
+                                  ],
+                                ),
+                                const SizedBox(height: 30),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+        ),
       ),
     );
   }
@@ -563,6 +583,55 @@ class _HomeScreenState extends State<HomeScreen>
               openAppSettings();
             },
             child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Toggle fullscreen mode
+  Future<void> _toggleFullscreen() async {
+    try {
+      bool success = false;
+      if (_isFullscreen) {
+        success = await PlatformService.exitFullscreen();
+      } else {
+        success = await PlatformService.enterFullscreen();
+      }
+
+      if (success) {
+        setState(() {
+          _isFullscreen = !_isFullscreen;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error toggling fullscreen: $e');
+    }
+  }
+
+  // Show keyboard shortcuts guide
+  void _showKeyboardShortcuts() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Keyboard Shortcuts',
+            style: TextStyle(color: primaryPink)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShortcutItem(keyName: 'F', description: 'Toggle fullscreen'),
+              ShortcutItem(keyName: 'ESC', description: 'Exit fullscreen'),
+              ShortcutItem(
+                  keyName: 'Double-click', description: 'Exit fullscreen'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: primaryPink)),
           ),
         ],
       ),

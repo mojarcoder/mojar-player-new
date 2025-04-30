@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:chewie/chewie.dart';
@@ -12,6 +13,7 @@ import 'package:file_selector/file_selector.dart';
 import '../widgets/audio_effects.dart';
 import '../widgets/subtitle_settings.dart';
 import '../widgets/fullscreen_drag_handler.dart';
+import '../widgets/shortcut_item.dart';
 import '../services/platform_service.dart';
 import 'about_screen.dart';
 
@@ -52,7 +54,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   // Player state
   bool _isPlaying = false;
   bool _isMuted = false;
-  double _volume = 1.0;
+  double _volume = 1.0; // Default is 100%
   final double _playbackSpeed = 1.0;
   LoopMode _loopMode = LoopMode.none;
   bool _showControls = true;
@@ -75,6 +77,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   String? _error;
   double _subtitleDelay = 0.0;
   bool _disposed = false;
+  bool _showVolumeInfo = false;
+  Timer? _hideVolumeInfoTimer;
 
   @override
   void initState() {
@@ -113,6 +117,9 @@ class _PlayerScreenState extends State<PlayerScreen>
         media,
         play: true,
       );
+
+      // Set initial volume to 100%
+      _player.setVolume(100);
 
       if (widget.subtitlePath != null) {
         await _player.setSubtitleTrack(SubtitleTrack.uri(widget.subtitlePath!));
@@ -211,32 +218,108 @@ class _PlayerScreenState extends State<PlayerScreen>
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
-          child: MouseRegion(
-            onHover: (_) {
-              if (!_disposed && mounted) {
-                setState(() => _showControls = true);
-                _startHideControlsTimer();
-              }
-            },
-            child: GestureDetector(
-              onSecondaryTapUp: (details) {
-                if (!_disposed) {
-                  _showContextMenu(context, details.globalPosition);
+          child: RawKeyboardListener(
+            focusNode: FocusNode()..requestFocus(),
+            autofocus: true,
+            onKey: _handleKeyPress,
+            child: MouseRegion(
+              onHover: (_) {
+                if (!_disposed && mounted) {
+                  setState(() => _showControls = true);
+                  _startHideControlsTimer();
                 }
               },
-              child: FullscreenDragHandler(
-                onExitFullscreen: () {
-                  if (mounted) {
-                    setState(() {
-                      _isFullscreen = false;
-                    });
+              child: GestureDetector(
+                onSecondaryTapUp: (details) {
+                  if (!_disposed) {
+                    _showContextMenu(context, details.globalPosition);
                   }
                 },
-                child: Stack(
-                  children: [
-                    _buildMediaDisplay(),
-                    if (_showControls) _buildControls(),
-                  ],
+                // Add vertical drag detector for volume control
+                onVerticalDragUpdate: (details) {
+                  // Decrease volume on downward drag, increase on upward drag
+                  if (!_isMuted) {
+                    double newVolume = _volume - (details.delta.dy * 0.01);
+                    // Clamp volume between 0 and 2 (0% to 200%)
+                    newVolume = newVolume.clamp(0.0, 2.0);
+                    if (newVolume != _volume) {
+                      setState(() {
+                        _volume = newVolume;
+                      });
+                      _player.setVolume(_volume * 100);
+                      _showVolumeInfoOverlay();
+                    }
+                  }
+                },
+                // Add double-tap to exit fullscreen
+                onDoubleTap: () {
+                  if (_isFullscreen) {
+                    _exitFullscreen();
+                  }
+                },
+                child: FullscreenDragHandler(
+                  onExitFullscreen: () {
+                    if (mounted) {
+                      setState(() {
+                        _isFullscreen = false;
+                      });
+                    }
+                  },
+                  child: Stack(
+                    children: [
+                      _buildMediaDisplay(),
+                      if (_showControls) _buildControls(),
+
+                      // Volume indicator overlay
+                      if (_showVolumeInfo)
+                        Positioned(
+                          top: 50,
+                          right: 50,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _isMuted
+                                      ? Icons.volume_off
+                                      : _volume <= 0.5
+                                          ? Icons.volume_down
+                                          : _volume <= 1.0
+                                              ? Icons.volume_up
+                                              : Icons.volume_up,
+                                  color: _isMuted
+                                      ? Colors.red
+                                      : _volume > 1.0
+                                          ? Colors.orange
+                                          : Colors.white,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  _isMuted
+                                      ? "Muted"
+                                      : "${(_volume * 100).toInt()}%",
+                                  style: TextStyle(
+                                    color: _isMuted
+                                        ? Colors.red
+                                        : _volume > 1.0
+                                            ? Colors.orange
+                                            : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -260,8 +343,22 @@ class _PlayerScreenState extends State<PlayerScreen>
         ),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Top controls - add shortcuts help button
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.keyboard, color: Colors.white),
+                  tooltip: 'Keyboard Shortcuts',
+                  onPressed: _showKeyboardShortcuts,
+                ),
+              ],
+            ),
+          ),
           // Bottom controls
           _buildBottomControls(),
         ],
@@ -366,18 +463,23 @@ class _PlayerScreenState extends State<PlayerScreen>
                 onPressed: () {
                   setState(() => _isMuted = !_isMuted);
                   _player.setVolume(_isMuted ? 0 : _volume * 100);
+                  _showVolumeInfoOverlay();
                 },
               ),
               SizedBox(
-                width: 100, // Reduced width for volume slider
+                width: 120, // Increased width for volume slider
                 child: Slider(
-                  value: _volume,
+                  value: _volume.clamp(0.0, 2.0),
+                  min: 0.0,
+                  max: 2.0, // Allow up to 200% volume
+                  divisions: 20, // More precise control
                   onChanged: (value) {
                     setState(() {
                       _volume = value;
                       _isMuted = false;
                     });
                     _player.setVolume(_volume * 100);
+                    _showVolumeInfoOverlay();
                   },
                 ),
               ),
@@ -1455,8 +1557,124 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
   }
 
+  // Show volume info overlay and start timer to hide it
+  void _showVolumeInfoOverlay() {
+    setState(() {
+      _showVolumeInfo = true;
+    });
+
+    _hideVolumeInfoTimer?.cancel();
+    _hideVolumeInfoTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showVolumeInfo = false;
+        });
+      }
+    });
+  }
+
+  // Handle keyboard key presses
+  void _handleKeyPress(RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Increase volume with Up arrow
+        _adjustVolume(0.05);
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        // Decrease volume with Down arrow
+        _adjustVolume(-0.05);
+      } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
+        // Toggle mute with M key
+        setState(() => _isMuted = !_isMuted);
+        _player.setVolume(_isMuted ? 0 : _volume * 100);
+        _showVolumeInfoOverlay();
+      } else if (event.logicalKey == LogicalKeyboardKey.escape &&
+          _isFullscreen) {
+        // Exit fullscreen with ESC key
+        _exitFullscreen();
+      } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+        // Toggle fullscreen with F key
+        _toggleFullscreen();
+      }
+    }
+  }
+
+  // Adjust volume by the specified amount
+  void _adjustVolume(double delta) {
+    if (_isMuted && delta > 0) {
+      // If volume is being increased while muted, unmute first
+      setState(() => _isMuted = false);
+    }
+
+    if (!_isMuted) {
+      double newVolume = (_volume + delta).clamp(0.0, 2.0);
+      setState(() {
+        _volume = newVolume;
+      });
+      _player.setVolume(_volume * 100);
+      _showVolumeInfoOverlay();
+    }
+  }
+
+  // Toggle fullscreen mode
+  Future<void> _toggleFullscreen() async {
+    try {
+      bool success = false;
+      if (_isFullscreen) {
+        success = await PlatformService.exitFullscreen();
+      } else {
+        success = await PlatformService.enterFullscreen();
+      }
+
+      if (success && mounted) {
+        setState(() {
+          _isFullscreen = !_isFullscreen;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error toggling fullscreen: $e');
+    }
+  }
+
+  // Show keyboard shortcuts overlay
+  void _showKeyboardShortcuts() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Keyboard Shortcuts',
+            style: TextStyle(color: primaryPink)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShortcutItem(keyName: 'F', description: 'Toggle fullscreen'),
+              ShortcutItem(keyName: 'ESC', description: 'Exit fullscreen'),
+              ShortcutItem(keyName: 'Space', description: 'Play/Pause'),
+              ShortcutItem(
+                  keyName: '↑ / ↓', description: 'Increase/Decrease volume'),
+              ShortcutItem(
+                  keyName: '← / →', description: 'Seek backward/forward (5s)'),
+              ShortcutItem(keyName: 'M', description: 'Mute/Unmute'),
+              ShortcutItem(
+                  keyName: 'Double-click', description: 'Exit fullscreen'),
+              ShortcutItem(
+                  keyName: 'Mouse drag ↑/↓', description: 'Adjust volume'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: primaryPink)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _hideVolumeInfoTimer?.cancel();
     _cleanupResources();
     super.dispose();
   }

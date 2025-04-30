@@ -137,7 +137,7 @@ class _MediaControlsState extends State<MediaControls> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     final isDark = widget.isDarkMode;
-    final primaryColor = Colors.pink;
+    const primaryColor = Colors.pink;
     final backgroundColor = isDark ? Colors.grey[900] : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
 
@@ -154,7 +154,7 @@ class _MediaControlsState extends State<MediaControls> {
           value: 'mediaInfo',
           child: Row(
             children: [
-              Icon(Icons.info_outline, color: primaryColor),
+              const Icon(Icons.info_outline, color: primaryColor),
               const SizedBox(width: 10),
               Text('Media Info', style: TextStyle(color: textColor)),
             ],
@@ -164,7 +164,7 @@ class _MediaControlsState extends State<MediaControls> {
           value: 'subtitle',
           child: Row(
             children: [
-              Icon(Icons.subtitles, color: primaryColor),
+              const Icon(Icons.subtitles, color: primaryColor),
               const SizedBox(width: 10),
               Text('Subtitle Settings', style: TextStyle(color: textColor)),
             ],
@@ -174,7 +174,7 @@ class _MediaControlsState extends State<MediaControls> {
           value: 'audioSync',
           child: Row(
             children: [
-              Icon(Icons.sync, color: primaryColor),
+              const Icon(Icons.sync, color: primaryColor),
               const SizedBox(width: 10),
               Text('Audio Synchronization', style: TextStyle(color: textColor)),
             ],
@@ -184,7 +184,7 @@ class _MediaControlsState extends State<MediaControls> {
           value: 'snapshot',
           child: Row(
             children: [
-              Icon(Icons.camera_alt, color: primaryColor),
+              const Icon(Icons.camera_alt, color: primaryColor),
               const SizedBox(width: 10),
               Text('Take Snapshot', style: TextStyle(color: textColor)),
             ],
@@ -194,9 +194,10 @@ class _MediaControlsState extends State<MediaControls> {
           value: 'about',
           child: Row(
             children: [
-              Icon(Icons.help_outline, color: primaryColor),
+              const Icon(Icons.help_outline, color: primaryColor),
               const SizedBox(width: 10),
-              Text('About Mojar Player Pro', style: TextStyle(color: textColor)),
+              Text('About Mojar Player Pro',
+                  style: TextStyle(color: textColor)),
             ],
           ),
         ),
@@ -242,7 +243,7 @@ class _MediaControlsState extends State<MediaControls> {
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
     final theme = Theme.of(context);
-    final primaryColor = Colors.pink;
+    const primaryColor = Colors.pink;
     final secondaryColor = isDark ? Colors.pink[200] : Colors.pink[300];
     final backgroundColor =
         isDark ? Colors.black.withOpacity(0.7) : Colors.white.withOpacity(0.7);
@@ -326,7 +327,6 @@ class _MediaControlsState extends State<MediaControls> {
                           ),
                         ],
                       ),
-
                       Row(
                         children: [
                           // Theme Toggle
@@ -433,10 +433,9 @@ class _MediaControlsState extends State<MediaControls> {
                                 horizontal: 16.0,
                               ),
                               decoration: BoxDecoration(
-                                color:
-                                    isSelected
-                                        ? primaryColor.withOpacity(0.2)
-                                        : Colors.transparent,
+                                color: isSelected
+                                    ? primaryColor.withOpacity(0.2)
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(4.0),
                               ),
                               child: Row(
@@ -451,7 +450,7 @@ class _MediaControlsState extends State<MediaControls> {
                                     ),
                                   ),
                                   if (isSelected)
-                                    Icon(
+                                    const Icon(
                                       Icons.check,
                                       size: 18,
                                       color: primaryColor,
@@ -518,10 +517,9 @@ class _MediaControlsState extends State<MediaControls> {
                                 horizontal: 16.0,
                               ),
                               decoration: BoxDecoration(
-                                color:
-                                    isSelected
-                                        ? primaryColor.withOpacity(0.2)
-                                        : Colors.transparent,
+                                color: isSelected
+                                    ? primaryColor.withOpacity(0.2)
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(4.0),
                               ),
                               child: Row(
@@ -536,7 +534,7 @@ class _MediaControlsState extends State<MediaControls> {
                                     ),
                                   ),
                                   if (isSelected)
-                                    Icon(
+                                    const Icon(
                                       Icons.check,
                                       size: 18,
                                       color: primaryColor,
@@ -661,7 +659,7 @@ class _MediaControlsState extends State<MediaControls> {
 
                               // Play/Pause Button
                               Container(
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   color: primaryColor,
                                   shape: BoxShape.circle,
                                 ),
@@ -674,10 +672,9 @@ class _MediaControlsState extends State<MediaControls> {
                                     color: Colors.white,
                                   ),
                                   onPressed: widget.onPlayPause,
-                                  tooltip:
-                                      widget.player.isPlaying
-                                          ? 'Pause'
-                                          : 'Play',
+                                  tooltip: widget.player.isPlaying
+                                      ? 'Pause'
+                                      : 'Play',
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -724,16 +721,14 @@ class _MediaControlsState extends State<MediaControls> {
                               IconButton(
                                 icon: Icon(
                                   Icons.repeat,
-                                  color:
-                                      widget.player.isLooping
-                                          ? primaryColor
-                                          : Colors.white,
+                                  color: widget.player.isLooping
+                                      ? primaryColor
+                                      : Colors.white,
                                 ),
                                 onPressed: widget.onToggleLoop,
-                                tooltip:
-                                    widget.player.isLooping
-                                        ? 'Turn off loop'
-                                        : 'Turn on loop',
+                                tooltip: widget.player.isLooping
+                                    ? 'Turn off loop'
+                                    : 'Turn on loop',
                               ),
                             ],
                           ),
@@ -767,10 +762,9 @@ class _MediaControlsState extends State<MediaControls> {
             child: Slider(
               value: player.position.inSeconds.toDouble(),
               min: 0,
-              max:
-                  player.duration.inSeconds.toDouble() > 0
-                      ? player.duration.inSeconds.toDouble()
-                      : 1.0,
+              max: player.duration.inSeconds.toDouble() > 0
+                  ? player.duration.inSeconds.toDouble()
+                  : 1.0,
               onChanged: (value) {
                 widget.onSeek(Duration(seconds: value.toInt()));
                 _startHideTimer();
