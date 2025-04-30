@@ -31,7 +31,7 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  // Initialize platform services
+  // Initialize platform services first
   await PlatformService.initialize();
 
   // Initialize media_kit

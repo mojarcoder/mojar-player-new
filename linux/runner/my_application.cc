@@ -10,15 +10,131 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  GtkWindow* window;  // Store a reference to the main window
+  gboolean is_fullscreen;  // Track fullscreen state
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+// Get the main window
+GtkWindow* my_application_get_window(MyApplication* self) {
+  return self->window;
+}
+
+// Toggle fullscreen state
+gboolean my_application_toggle_fullscreen(MyApplication* self) {
+  if (!self->window) {
+    return FALSE;
+  }
+
+  // Check the actual window state to ensure accuracy
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(self->window));
+  if (!gdk_window) {
+    return FALSE;
+  }
+
+  // Get the current window state
+  GdkWindowState state = gdk_window_get_state(gdk_window);
+  gboolean is_fullscreen = (state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+
+  // Update our tracking to match reality
+  self->is_fullscreen = is_fullscreen;
+
+  // Toggle the fullscreen state
+  if (self->is_fullscreen) {
+    gtk_window_unfullscreen(self->window);
+    self->is_fullscreen = FALSE;
+  } else {
+    gtk_window_fullscreen(self->window);
+    self->is_fullscreen = TRUE;
+  }
+
+  // Ensure window state changes are processed
+  while (gtk_events_pending()) {
+    gtk_main_iteration();
+  }
+
+  // Return the new state
+  return self->is_fullscreen;
+}
+
+// Check if window is fullscreen
+gboolean my_application_is_fullscreen(MyApplication* self) {
+  if (!self->window) {
+    return FALSE;
+  }
+
+  // Check the actual window state to ensure accuracy
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(self->window));
+  if (!gdk_window) {
+    return FALSE;
+  }
+
+  // Get the current window state
+  GdkWindowState state = gdk_window_get_state(gdk_window);
+  gboolean is_fullscreen = (state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+
+  // Update our tracking to match reality
+  self->is_fullscreen = is_fullscreen;
+  
+  return self->is_fullscreen;
+}
+
+// Method channel handler
+static void method_call_handler(FlMethodChannel* channel, FlMethodCall* method_call, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* method = fl_method_call_get_name(method_call);
+  
+  if (strcmp(method, "enterFullscreen") == 0) {
+    // First check the current state
+    gboolean currentState = my_application_is_fullscreen(self);
+    
+    if (!currentState && self->window) {
+      gtk_window_fullscreen(self->window);
+      
+      // Ensure window state changes are processed
+      while (gtk_events_pending()) {
+        gtk_main_iteration();
+      }
+      
+      self->is_fullscreen = TRUE;
+    }
+    fl_method_call_respond_success(method_call, fl_value_new_bool(self->is_fullscreen), nullptr);
+  } else if (strcmp(method, "exitFullscreen") == 0) {
+    // First check the current state
+    gboolean currentState = my_application_is_fullscreen(self);
+    
+    if (currentState && self->window) {
+      gtk_window_unfullscreen(self->window);
+      
+      // Ensure window state changes are processed
+      while (gtk_events_pending()) {
+        gtk_main_iteration();
+      }
+      
+      self->is_fullscreen = FALSE;
+    }
+    fl_method_call_respond_success(method_call, fl_value_new_bool(FALSE), nullptr);
+  } else if (strcmp(method, "toggleFullscreen") == 0) {
+    gboolean result = my_application_toggle_fullscreen(self);
+    fl_method_call_respond_success(method_call, fl_value_new_bool(result), nullptr);
+  } else if (strcmp(method, "isFullscreen") == 0) {
+    gboolean result = my_application_is_fullscreen(self);
+    fl_method_call_respond_success(method_call, fl_value_new_bool(result), nullptr);
+  } else {
+    fl_method_call_respond_not_implemented(method_call, nullptr);
+  }
+}
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  
+  // Store window reference
+  self->window = window;
+  self->is_fullscreen = FALSE;
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -59,6 +175,14 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  // Set up the method channel
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "com.mojarplayer.mojar_player_pro/system",
+      FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(channel, method_call_handler, self, nullptr);
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -83,7 +207,7 @@ static gboolean my_application_local_command_line(GApplication* application, gch
 
 // Implements GApplication::startup.
 static void my_application_startup(GApplication* application) {
-  //MyApplication* self = MY_APPLICATION(object);
+  //MyApplication* self = MY_APPLICATION(application);
 
   // Perform any actions required at application startup.
 
@@ -92,7 +216,7 @@ static void my_application_startup(GApplication* application) {
 
 // Implements GApplication::shutdown.
 static void my_application_shutdown(GApplication* application) {
-  //MyApplication* self = MY_APPLICATION(object);
+  //MyApplication* self = MY_APPLICATION(application);
 
   // Perform any actions required at application shutdown.
 
@@ -114,7 +238,10 @@ static void my_application_class_init(MyApplicationClass* klass) {
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
 }
 
-static void my_application_init(MyApplication* self) {}
+static void my_application_init(MyApplication* self) {
+  self->window = NULL;
+  self->is_fullscreen = FALSE;
+}
 
 MyApplication* my_application_new() {
   // Set the program name to the application ID, which helps various systems

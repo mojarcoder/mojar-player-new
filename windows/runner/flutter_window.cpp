@@ -9,6 +9,82 @@ FlutterWindow::FlutterWindow(const flutter::DartProject& project)
 
 FlutterWindow::~FlutterWindow() {}
 
+bool FlutterWindow::ToggleFullscreen() {
+  if (is_fullscreen_) {
+    return ExitFullscreen();
+  } else {
+    return EnterFullscreen();
+  }
+}
+
+bool FlutterWindow::EnterFullscreen() {
+  if (is_fullscreen_) {
+    return true; // Already in fullscreen mode
+  }
+
+  HWND hwnd = GetHandle();
+  if (!hwnd) {
+    return false;
+  }
+
+  // Store current window info for restoration later
+  windowed_style_ = GetWindowLong(hwnd, GWL_STYLE);
+  windowed_ex_style_ = GetWindowLong(hwnd, GWL_EXSTYLE);
+  GetWindowRect(hwnd, &windowed_rect_);
+
+  // Get the nearest monitor
+  HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+  MONITORINFO monitor_info;
+  monitor_info.cbSize = sizeof(MONITORINFO);
+  GetMonitorInfo(monitor, &monitor_info);
+
+  // Set fullscreen style (no border, etc.)
+  SetWindowLong(hwnd, GWL_STYLE, windowed_style_ & ~(WS_CAPTION | WS_THICKFRAME));
+  SetWindowLong(hwnd, GWL_EXSTYLE, windowed_ex_style_ & 
+                ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
+
+  // Set window to cover entire monitor
+  SetWindowPos(hwnd, HWND_TOP,
+               monitor_info.rcMonitor.left, 
+               monitor_info.rcMonitor.top,
+               monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+               monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+               SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+
+  is_fullscreen_ = true;
+  return true;
+}
+
+bool FlutterWindow::ExitFullscreen() {
+  if (!is_fullscreen_) {
+    return true; // Already in windowed mode
+  }
+
+  HWND hwnd = GetHandle();
+  if (!hwnd) {
+    return false;
+  }
+
+  // Restore the window style and position
+  SetWindowLong(hwnd, GWL_STYLE, windowed_style_);
+  SetWindowLong(hwnd, GWL_EXSTYLE, windowed_ex_style_);
+
+  // Restore the window position and size
+  SetWindowPos(hwnd, HWND_TOP,
+               windowed_rect_.left, 
+               windowed_rect_.top,
+               windowed_rect_.right - windowed_rect_.left,
+               windowed_rect_.bottom - windowed_rect_.top,
+               SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+
+  is_fullscreen_ = false;
+  return true;
+}
+
+bool FlutterWindow::IsFullscreen() {
+  return is_fullscreen_;
+}
+
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
     return false;
@@ -30,6 +106,35 @@ bool FlutterWindow::OnCreate() {
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
+
+  // Register method channel for platform integration
+  flutter::MethodChannel<flutter::EncodableValue> channel(
+      flutter_controller_->engine()->messenger(),
+      "com.mojarplayer.mojar_player_pro/system",
+      &flutter::StandardMethodCodec::GetInstance());
+
+  // Set up method call handler for fullscreen functions
+  channel.SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+        if (call.method_name() == "enterFullscreen") {
+          bool success = this->EnterFullscreen();
+          result->Success(flutter::EncodableValue(success));
+        } else if (call.method_name() == "exitFullscreen") {
+          bool success = this->ExitFullscreen();
+          result->Success(flutter::EncodableValue(success));
+        } else if (call.method_name() == "toggleFullscreen") {
+          bool success = this->ToggleFullscreen();
+          result->Success(flutter::EncodableValue(success));
+        } else if (call.method_name() == "isFullscreen") {
+          bool is_full = this->IsFullscreen();
+          result->Success(flutter::EncodableValue(is_full));
+        } else if (call.method_name() == "ping") {
+          result->Success(flutter::EncodableValue("pong"));
+        } else {
+          result->NotImplemented();
+        }
+      });
 
   // Flutter can complete the first frame before the "show window" callback is
   // registered. The following call ensures a frame is pending to ensure the
@@ -64,6 +169,13 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   switch (message) {
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
+      break;
+    // Handle F11 key press for fullscreen toggle
+    case WM_KEYDOWN:
+      if (wparam == VK_F11) {
+        ToggleFullscreen();
+        return 0;
+      }
       break;
   }
 
