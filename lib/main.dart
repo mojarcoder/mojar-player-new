@@ -56,7 +56,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: primaryPink),
         useMaterial3: true,
       ),
-      home: SplashScreen(nextScreen: HomeScreen()),
+      home: const SplashScreen(nextScreen: HomeScreen()),
     );
   }
 }
@@ -77,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen>
   final bool _isPlaying = false;
   late AnimationController _controller;
   late Animation<double> _heartbeatAnimation;
+  bool _isFullscreen = false;
 
   // Social media URLs
   final Uri _facebookUrl = Uri.parse('https://facebook.com/mojarcoder');
@@ -100,6 +101,39 @@ class _HomeScreenState extends State<HomeScreen>
       begin: 1.0,
       end: 1.2,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+    // Check fullscreen state when page is loaded
+    _checkFullscreenState();
+  }
+
+  // Check the current fullscreen state
+  Future<void> _checkFullscreenState() async {
+    try {
+      _isFullscreen = await PlatformService.isFullscreen();
+      setState(() {});
+    } catch (e) {
+      debugPrint('Error checking fullscreen state: $e');
+    }
+  }
+
+  // Function to exit fullscreen
+  Future<void> _exitFullscreen() async {
+    try {
+      bool success = await PlatformService.exitFullscreen();
+      if (success) {
+        setState(() {
+          _isFullscreen = false;
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to exit fullscreen')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error exiting fullscreen: $e');
+    }
   }
 
   // Function to launch URLs
@@ -132,6 +166,14 @@ class _HomeScreenState extends State<HomeScreen>
         backgroundColor: primaryPink,
         elevation: 0,
         actions: [
+          // Add exit fullscreen button if in fullscreen mode
+          if (_isFullscreen)
+            IconButton(
+              icon: const Icon(Icons.fullscreen_exit),
+              onPressed: _exitFullscreen,
+              tooltip: 'Exit Fullscreen (ESC)',
+              color: Colors.white,
+            ),
           IconButton(
             icon: const FaIcon(FontAwesomeIcons.folder, size: 20),
             onPressed: _browseLocalFolders,
@@ -140,154 +182,165 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),
-            onPressed:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AboutScreen()),
-                ),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AboutScreen()),
+            ),
             tooltip: 'About',
             color: Colors.white,
           ),
         ],
       ),
-      body:
-          _isLoading
-              ? const Center(
+      // Add keyboard listener for ESC key to exit fullscreen
+      body: KeyboardListener(
+        focusNode: FocusNode(),
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape &&
+              _isFullscreen) {
+            _exitFullscreen();
+          }
+        },
+        child: _isLoading
+            ? const Center(
                 child: CircularProgressIndicator(color: primaryPink),
               )
-              : _chewieController != null
-              ? Chewie(controller: _chewieController!)
-              : Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [primaryPink, Colors.white],
-                    stops: const [0.0, 0.3],
-                  ),
-                ),
-                child: Center(
-                  child: GestureDetector(
-                    onLongPress: () => _showContextMenu(context),
-                    onSecondaryTap: () => _showContextMenu(context),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 20),
-                          // Animated heartbeat logo
-                          AnimatedBuilder(
-                            animation: _heartbeatAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _heartbeatAnimation.value,
-                                child: Hero(
-                                  tag: 'profileImage',
-                                  child: CircleAvatar(
-                                    radius: 60,
-                                    backgroundColor: lightPink,
-                                    backgroundImage: const AssetImage(
-                                      'assets/images/profile.jpg',
+            : _chewieController != null
+                ? Chewie(controller: _chewieController!)
+                : Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [primaryPink, Colors.white],
+                        stops: [0.0, 0.3],
+                      ),
+                    ),
+                    child: Center(
+                      child: GestureDetector(
+                        onLongPress: () => _showContextMenu(context),
+                        onSecondaryTap: () => _showContextMenu(context),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 20),
+                              // Animated heartbeat logo
+                              AnimatedBuilder(
+                                animation: _heartbeatAnimation,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: _heartbeatAnimation.value,
+                                    child: Hero(
+                                      tag: 'profileImage',
+                                      child: CircleAvatar(
+                                        radius: 60,
+                                        backgroundColor: lightPink,
+                                        backgroundImage: const AssetImage(
+                                          'assets/images/profile.jpg',
+                                        ),
+                                        onBackgroundImageError: (_, __) {},
+                                      ),
                                     ),
-                                    onBackgroundImageError: (_, __) {},
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                'Mojar Player Pro',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: darkPink,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Play your media files with ease',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: darkPink,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Container(
+                                height: 2,
+                                width: 100,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      darkPink,
+                                      Colors.transparent,
+                                    ],
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Mojar Player Pro',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: darkPink,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Play your media files with ease',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: darkPink,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Container(
-                            height: 2,
-                            width: 100,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.transparent,
-                                  darkPink,
-                                  Colors.transparent,
+                              ),
+                              const SizedBox(height: 30),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildActionButton(
+                                    icon: Icons.folder_open,
+                                    label: 'Open Media',
+                                    onPressed: _openFile,
+                                  ),
+                                  const SizedBox(width: 20),
+                                  _buildActionButton(
+                                    icon: Icons.folder,
+                                    label: 'Browse Folders',
+                                    onPressed: _browseLocalFolders,
+                                  ),
                                 ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildActionButton(
-                                icon: Icons.folder_open,
-                                label: 'Open Media',
-                                onPressed: _openFile,
+                              const SizedBox(height: 30),
+                              const Text(
+                                'Connect with us',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: darkPink,
+                                ),
                               ),
-                              const SizedBox(width: 20),
-                              _buildActionButton(
-                                icon: Icons.folder,
-                                label: 'Browse Folders',
-                                onPressed: _browseLocalFolders,
+                              const SizedBox(height: 20),
+                              _buildSocialLinks(),
+                              const SizedBox(height: 20),
+                              Container(
+                                height: 2,
+                                width: 100,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      darkPink,
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 30),
-                          const Text(
-                            'Connect with us',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: darkPink,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSocialLinks(),
-                          const SizedBox(height: 20),
-                          Container(
-                            height: 2,
-                            width: 100,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.transparent,
-                                  darkPink,
-                                  Colors.transparent,
+                              const SizedBox(height: 20),
+                              const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Mojar Player Pro v1.0.6',
+                                    style: TextStyle(
+                                        fontSize: 16, color: darkPink),
+                                  ),
+                                  SizedBox(width: 5),
+                                  Icon(Icons.favorite,
+                                      size: 16, color: darkPink),
                                 ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Mojar Player Pro v1.0.6',
-                                style: TextStyle(fontSize: 16, color: darkPink),
-                              ),
-                              SizedBox(width: 5),
-                              Icon(Icons.favorite, size: 16, color: darkPink),
+                              const SizedBox(height: 30),
                             ],
                           ),
-                          const SizedBox(height: 30),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+      ),
     );
   }
 
@@ -494,26 +547,25 @@ class _HomeScreenState extends State<HomeScreen>
   void _showPermissionDeniedDialog() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Permission Required'),
-            content: const Text(
-              'Storage access permission is required to select media files. Please grant the permission in app settings.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  openAppSettings();
-                },
-                child: const Text('Open Settings'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Permission Required'),
+        content: const Text(
+          'Storage access permission is required to select media files. Please grant the permission in app settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
     );
   }
 }

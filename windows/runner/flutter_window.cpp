@@ -1,6 +1,9 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
+#include <flutter/encodable_value.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -108,15 +111,15 @@ bool FlutterWindow::OnCreate() {
   });
 
   // Register method channel for platform integration
-  flutter::MethodChannel<flutter::EncodableValue> channel(
-      flutter_controller_->engine()->messenger(),
-      "com.mojarplayer.mojar_player_pro/system",
-      &flutter::StandardMethodCodec::GetInstance());
+  auto channel =
+      std::make_unique<flutter::MethodChannel<>>(
+          flutter_controller_->engine()->messenger(),
+          "com.mojarplayer.mojar_player_pro/system",
+          &flutter::StandardMethodCodec::GetInstance());
 
   // Set up method call handler for fullscreen functions
-  channel.SetMethodCallHandler(
-      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
-             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  channel->SetMethodCallHandler(
+      [this](const auto& call, auto result) {
         if (call.method_name() == "enterFullscreen") {
           bool success = this->EnterFullscreen();
           result->Success(flutter::EncodableValue(success));
@@ -174,6 +177,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_KEYDOWN:
       if (wparam == VK_F11) {
         ToggleFullscreen();
+        return 0;
+      }
+      // Handle ESC key press to exit fullscreen
+      else if (wparam == VK_ESCAPE && is_fullscreen_) {
+        ExitFullscreen();
         return 0;
       }
       break;

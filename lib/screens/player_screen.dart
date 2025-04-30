@@ -1,29 +1,17 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/rendering.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:chewie/chewie.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart'
     show AudioPlayer, Source, DeviceFileSource, UrlSource, BytesSource;
 import 'package:file_selector/file_selector.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../widgets/media_controls.dart';
-import '../widgets/context_menu.dart';
 import '../widgets/audio_effects.dart';
 import '../widgets/subtitle_settings.dart';
-import '../services/folder_browser_service.dart';
+import '../widgets/fullscreen_drag_handler.dart';
 import '../services/platform_service.dart';
 import 'about_screen.dart';
 
@@ -65,9 +53,6 @@ class _PlayerScreenState extends State<PlayerScreen>
   bool _isPlaying = false;
   bool _isMuted = false;
   double _volume = 1.0;
-  final double _maxVolume = 2.0; // Maximum volume at 200%
-  bool _showVolumeStatus = false;
-  Timer? _volumeStatusTimer;
   final double _playbackSpeed = 1.0;
   LoopMode _loopMode = LoopMode.none;
   bool _showControls = true;
@@ -97,7 +82,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     _playlist = [widget.videoPath];
     _initializePlayer();
     _startHideControlsTimer();
-    _checkFullscreenStatus();
+    _checkFullscreenState();
 
     // Initialize cassette animation
     _cassetteController = AnimationController(
@@ -216,75 +201,41 @@ class _PlayerScreenState extends State<PlayerScreen>
   Widget build(BuildContext context) {
     if (_disposed) return const SizedBox.shrink();
 
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (!didPop && !_disposed) {
+    return WillPopScope(
+      onWillPop: () async {
+        if (!_disposed) {
           await _cleanupResources();
         }
+        return true;
       },
-      child: KeyboardListener(
-        focusNode: FocusNode()..requestFocus(),
-        onKeyEvent: _handleKeyEvent,
-        child: Scaffold(
-          backgroundColor: Colors.black,
-          body: SafeArea(
-            child: MouseRegion(
-              onHover: (_) {
-                if (!_disposed && mounted) {
-                  setState(() => _showControls = true);
-                  _startHideControlsTimer();
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: MouseRegion(
+            onHover: (_) {
+              if (!_disposed && mounted) {
+                setState(() => _showControls = true);
+                _startHideControlsTimer();
+              }
+            },
+            child: GestureDetector(
+              onSecondaryTapUp: (details) {
+                if (!_disposed) {
+                  _showContextMenu(context, details.globalPosition);
                 }
               },
-              child: GestureDetector(
-                onSecondaryTapUp: (details) {
-                  if (!_disposed) {
-                    _showContextMenu(context, details.globalPosition);
+              child: FullscreenDragHandler(
+                onExitFullscreen: () {
+                  if (mounted) {
+                    setState(() {
+                      _isFullscreen = false;
+                    });
                   }
                 },
                 child: Stack(
                   children: [
                     _buildMediaDisplay(),
                     if (_showControls) _buildControls(),
-                    if (_showVolumeStatus) 
-                      Positioned(
-                        bottom: 120,
-                        right: 20,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _isMuted 
-                                  ? Icons.volume_off 
-                                  : _volume < 0.01
-                                    ? Icons.volume_mute
-                                    : _volume < 0.5
-                                      ? Icons.volume_down
-                                      : _volume > 1.0
-                                        ? Icons.volume_up
-                                        : Icons.volume_up,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isMuted 
-                                  ? 'Muted' 
-                                  : 'Volume: ${(_volume * 100).toInt()}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -391,13 +342,6 @@ class _PlayerScreenState extends State<PlayerScreen>
                     : null,
               ),
               IconButton(
-                icon: Icon(
-                  _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                  color: Colors.white
-                ),
-                onPressed: _toggleFullscreen,
-              ),
-              IconButton(
                 icon: const Icon(Icons.exit_to_app, color: Colors.white),
                 onPressed: () async {
                   if (!_disposed) {
@@ -417,45 +361,50 @@ class _PlayerScreenState extends State<PlayerScreen>
           child: Row(
             children: [
               IconButton(
-                icon: Icon(
-                    _isMuted 
-                      ? Icons.volume_off 
-                      : _volume < 0.01
-                        ? Icons.volume_mute
-                        : _volume < 0.5
-                          ? Icons.volume_down
-                          : _volume > 1.0
-                            ? Icons.volume_up // Could use a custom icon for volume > 100%
-                            : Icons.volume_up,
+                icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up,
                     color: Colors.white),
                 onPressed: () {
                   setState(() => _isMuted = !_isMuted);
                   _player.setVolume(_isMuted ? 0 : _volume * 100);
-                  _showTemporaryVolumeStatus();
                 },
               ),
               SizedBox(
                 width: 100, // Reduced width for volume slider
                 child: Slider(
-                  value: _volume > _maxVolume ? _maxVolume : _volume,
-                  max: _maxVolume,
+                  value: _volume,
                   onChanged: (value) {
                     setState(() {
                       _volume = value;
                       _isMuted = false;
                     });
                     _player.setVolume(_volume * 100);
-                    _showTemporaryVolumeStatus();
                   },
                 ),
               ),
-              // Volume percentage indicator
-              SizedBox(
-                width: 60,
-                child: Text(
-                  '${(_volume * 100).toInt()}%',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+              IconButton(
+                icon: Icon(
+                  _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                  color: Colors.white,
                 ),
+                tooltip: _isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen",
+                onPressed: () async {
+                  try {
+                    bool success = false;
+                    if (_isFullscreen) {
+                      success = await PlatformService.exitFullscreen();
+                    } else {
+                      success = await PlatformService.enterFullscreen();
+                    }
+
+                    if (success) {
+                      setState(() {
+                        _isFullscreen = !_isFullscreen;
+                      });
+                    }
+                  } catch (e) {
+                    debugPrint('Error toggling fullscreen: $e');
+                  }
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.playlist_play, color: Colors.white),
@@ -652,60 +601,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     // Add common options
     menuItems.addAll([
       PopupMenuItem(
-        value: 'volume_100',
-        child: const Row(
-          children: [
-            Icon(Icons.volume_up, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Set Volume to 100%', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        onTap: () {
-          setState(() {
-            _volume = 1.0;
-            _isMuted = false;
-          });
-          _player.setVolume(_volume * 100);
-          _showTemporaryVolumeStatus();
-        },
-      ),
-      PopupMenuItem(
-        value: 'volume_150',
-        child: const Row(
-          children: [
-            Icon(Icons.volume_up, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Set Volume to 150%', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        onTap: () {
-          setState(() {
-            _volume = 1.5;
-            _isMuted = false;
-          });
-          _player.setVolume(_volume * 100);
-          _showTemporaryVolumeStatus();
-        },
-      ),
-      PopupMenuItem(
-        value: 'volume_200',
-        child: const Row(
-          children: [
-            Icon(Icons.volume_up, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Set Volume to 200%', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        onTap: () {
-          setState(() {
-            _volume = 2.0;
-            _isMuted = false;
-          });
-          _player.setVolume(_volume * 100);
-          _showTemporaryVolumeStatus();
-        },
-      ),
-      PopupMenuItem(
         value: 'audio_sync',
         child: const Row(
           children: [
@@ -726,23 +621,6 @@ class _PlayerScreenState extends State<PlayerScreen>
           ],
         ),
         onTap: () => _showAboutScreen(),
-      ),
-      PopupMenuItem(
-        value: 'fullscreen',
-        child: Row(
-          children: [
-            Icon(
-              _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-              color: Colors.white
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen',
-              style: const TextStyle(color: Colors.white)
-            ),
-          ],
-        ),
-        onTap: () => _toggleFullscreen(),
       ),
     ]);
 
@@ -868,39 +746,11 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Widget _buildMediaDisplay() {
-    if (_playlist.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.playlist_remove, size: 64, color: Colors.white54),
-            SizedBox(height: 16),
-            Text(
-              'No media in playlist',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Add media files to start playing',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     final isAudio =
         _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.mp3') ||
-        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
-        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
-        _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.wav') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.flac') ||
+            _playlist[_currentPlaylistIndex].toLowerCase().endsWith('.m4a');
 
     if (isAudio) {
       return Center(
@@ -1045,7 +895,7 @@ class _PlayerScreenState extends State<PlayerScreen>
             final screenHeight = constraints.maxHeight;
             final targetHeight = screenWidth / _aspectRatio;
 
-            return Container(
+            return SizedBox(
               width: screenWidth,
               height: targetHeight > screenHeight ? screenHeight : targetHeight,
               child: Video(controller: _controller),
@@ -1181,7 +1031,8 @@ class _PlayerScreenState extends State<PlayerScreen>
                                 // If it was the last item
                                 _currentPlaylistIndex--;
                               }
-                              _initializeNewMedia(_playlist[_currentPlaylistIndex])
+                              _initializeNewMedia(
+                                      _playlist[_currentPlaylistIndex])
                                   .then((_) {
                                 if (mounted) {
                                   setState(() {});
@@ -1192,9 +1043,6 @@ class _PlayerScreenState extends State<PlayerScreen>
                               _playlist.clear();
                               _currentPlaylistIndex = 0;
                               _player.pause();
-                              // Close the dialog and return to home screen
-                              Navigator.of(context).pop(); // Close dialog
-                              Navigator.of(context).pop(); // Return to home screen
                             }
                           } else {
                             // If removing another item
@@ -1575,119 +1423,40 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
   }
 
-  // Add method to show temporary volume status
-  void _showTemporaryVolumeStatus() {
-    setState(() => _showVolumeStatus = true);
-    _volumeStatusTimer?.cancel();
-    _volumeStatusTimer = Timer(const Duration(seconds: 2), () {
+  // Check if we're in fullscreen mode
+  Future<void> _checkFullscreenState() async {
+    try {
+      _isFullscreen = await PlatformService.isFullscreen();
       if (mounted) {
-        setState(() => _showVolumeStatus = false);
+        setState(() {});
       }
-    });
-  }
-
-  // Update key event handler method
-  void _handleKeyEvent(KeyEvent event) {
-    // Only handle key down events to avoid duplicate triggers
-    if (event is! KeyDownEvent) return;
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      // Increase volume by 5%
-      final newVolume = (_volume + 0.05).clamp(0.0, _maxVolume);
-      if (newVolume != _volume) {
-        setState(() {
-          _volume = newVolume;
-          _isMuted = false;
-        });
-        _player.setVolume(_volume * 100);
-        _showTemporaryVolumeStatus();
-      }
-    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      // Decrease volume by 5%
-      final newVolume = (_volume - 0.05).clamp(0.0, _maxVolume);
-      if (newVolume != _volume) {
-        setState(() {
-          _volume = newVolume;
-          _isMuted = false;
-        });
-        _player.setVolume(_volume * 100);
-        _showTemporaryVolumeStatus();
-      }
-    } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
-      // Toggle fullscreen
-      _toggleFullscreen();
+    } catch (e) {
+      debugPrint('Error checking fullscreen state: $e');
     }
   }
 
-  // Add method to toggle fullscreen
-  Future<void> _toggleFullscreen() async {
+  // Exit fullscreen mode
+  Future<void> _exitFullscreen() async {
     try {
-      // First check current status
-      final currentStatus = await PlatformService.isFullscreen();
-      debugPrint('Current fullscreen status before toggle: $currentStatus');
-      
-      // Toggle the fullscreen state
-      final result = await PlatformService.toggleFullscreen();
-      debugPrint('Fullscreen status after toggle: $result');
-      
-      // Only update state and show message if the state actually changed
-      if (result != currentStatus) {
+      bool success = await PlatformService.exitFullscreen();
+      if (success && mounted) {
         setState(() {
-          _isFullscreen = result;
+          _isFullscreen = false;
         });
-
-        // Show a temporary status message
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isFullscreen ? 'Entered fullscreen mode' : 'Exited fullscreen mode'),
-            backgroundColor: primaryPink,
-            duration: const Duration(seconds: 2),
-          ),
-        );
       } else {
-        debugPrint('Fullscreen state did not change, showing error');
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to toggle fullscreen state'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to exit fullscreen')),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Error toggling fullscreen: $e');
-      // Show error message
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to toggle fullscreen: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  // Add a method to check fullscreen status on init
-  Future<void> _checkFullscreenStatus() async {
-    try {
-      final result = await PlatformService.isFullscreen();
-      debugPrint('Initial fullscreen status: $result');
-      if (mounted) {
-        setState(() {
-          _isFullscreen = result;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error checking fullscreen status: $e');
+      debugPrint('Error exiting fullscreen: $e');
     }
   }
 
   @override
   void dispose() {
-    _volumeStatusTimer?.cancel();
     _cleanupResources();
     super.dispose();
   }

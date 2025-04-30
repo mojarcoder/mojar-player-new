@@ -28,7 +28,7 @@ class SubtitleSettings extends StatefulWidget {
 
 class _SubtitleSettingsState extends State<SubtitleSettings> {
   double _fontSize = 24.0;
-  Color _subtitleColor = Colors.white;
+  final Color _subtitleColor = Colors.white;
   bool _showBackground = true;
   double _backgroundOpacity = 0.6;
 
@@ -97,7 +97,8 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
                         dropdownColor: Colors.black.withOpacity(0.9),
                         isExpanded: true,
                         underline: const SizedBox(),
-                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        icon: const Icon(Icons.arrow_drop_down,
+                            color: Colors.white),
                         items: [
                           const DropdownMenuItem(
                             value: -1,
@@ -157,7 +158,8 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
                         IconButton(
                           icon: const Icon(Icons.remove, color: Colors.white),
                           onPressed: () {
-                            widget.onSubtitleDelayChanged(widget.subtitleDelay - 0.1);
+                            widget.onSubtitleDelayChanged(
+                                widget.subtitleDelay - 0.1);
                           },
                         ),
                         Expanded(
@@ -181,7 +183,8 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
                         IconButton(
                           icon: const Icon(Icons.add, color: Colors.white),
                           onPressed: () {
-                            widget.onSubtitleDelayChanged(widget.subtitleDelay + 0.1);
+                            widget.onSubtitleDelayChanged(
+                                widget.subtitleDelay + 0.1);
                           },
                         ),
                       ],
@@ -291,7 +294,7 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
 
   Future<void> _loadSubtitleFile() async {
     try {
-      final typeGroup = XTypeGroup(
+      const typeGroup = XTypeGroup(
         label: 'Subtitles',
         extensions: ['srt', 'vtt', 'ass', 'ssa'],
       );
@@ -319,7 +322,7 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
     // Update subtitle styling through the player
     if (widget.player.platform is NativePlayer) {
       final nativePlayer = widget.player.platform as NativePlayer;
-      
+
       nativePlayer.setProperty(
         'sub-scale',
         (_fontSize / 24.0).toString(), // normalize to base font size
@@ -328,7 +331,7 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
       if (_showBackground) {
         nativePlayer.setProperty(
           'sub-back-color',
-          '${Colors.black.value.toRadixString(16)}',
+          Colors.black.value.toRadixString(16),
         );
         nativePlayer.setProperty(
           'sub-back-alpha',
@@ -339,4 +342,4 @@ class _SubtitleSettingsState extends State<SubtitleSettings> {
       }
     }
   }
-} 
+}
