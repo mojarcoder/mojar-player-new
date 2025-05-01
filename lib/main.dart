@@ -589,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Toggle fullscreen mode
+  // Function to toggle fullscreen
   Future<void> _toggleFullscreen() async {
     try {
       bool success = false;
@@ -599,7 +599,7 @@ class _HomeScreenState extends State<HomeScreen>
         success = await PlatformService.enterFullscreen();
       }
 
-      if (success) {
+      if (success && mounted) {
         setState(() {
           _isFullscreen = !_isFullscreen;
         });
