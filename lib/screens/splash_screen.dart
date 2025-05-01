@@ -77,8 +77,8 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder:
-                (context, animation, secondaryAnimation) => widget.nextScreen,
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                widget.nextScreen,
             transitionsBuilder: (
               context,
               animation,
@@ -115,13 +115,12 @@ class _SplashScreenState extends State<SplashScreen>
           ),
           size: rnd.nextDouble() * 20 + 10,
           velocity: Offset(rnd.nextDouble() * 2 - 1, -2 - rnd.nextDouble() * 2),
-          color:
-              HSLColor.fromAHSL(
-                rnd.nextDouble() * 0.5 + 0.3,
-                rnd.nextDouble() * 30 + 330,
-                0.8,
-                0.7 + rnd.nextDouble() * 0.3,
-              ).toColor(),
+          color: HSLColor.fromAHSL(
+            rnd.nextDouble() * 0.5 + 0.3,
+            rnd.nextDouble() * 30 + 330,
+            0.8,
+            0.7 + rnd.nextDouble() * 0.3,
+          ).toColor(),
         ),
       );
     }
@@ -264,7 +263,7 @@ class _SplashScreenState extends State<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
-                      'v1.0.6',
+                      'v1.0.7',
                       style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                   ),
@@ -344,10 +343,9 @@ class HeartParticlesPainter extends CustomPainter {
         final center = Offset(size.width / 2, size.height / 2) + position;
 
         // Draw heart shape
-        final paint =
-            Paint()
-              ..color = particle.color.withOpacity(opacity)
-              ..style = PaintingStyle.fill;
+        final paint = Paint()
+          ..color = particle.color.withOpacity(opacity)
+          ..style = PaintingStyle.fill;
 
         final path = Path();
         final heartSize = particle.size;

@@ -8,18 +8,18 @@ You can install Mojar Player Pro using either the .deb package (for Debian/Ubunt
 
 ### Installing with .deb package (Debian/Ubuntu)
 
-1. Download the `mojar-player-pro_1.0.6.deb` package
+1. Download the `mojar-player-pro_1.0.7.deb` package
 2. Open terminal and navigate to the download directory
 3. Install using one of these methods:
 
    **Method 1:** Using the package manager:
    ```bash
-   sudo apt install ./mojar-player-pro_1.0.6.deb
+   sudo apt install ./mojar-player-pro_1.0.7.deb
    ```
 
    **Method 2:** Using dpkg:
    ```bash
-   sudo dpkg -i mojar-player-pro_1.0.6.deb
+   sudo dpkg -i mojar-player-pro_1.0.7.deb
    sudo apt-get install -f  # Install any missing dependencies
    ```
 
@@ -190,7 +190,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version Information
 
-Current version: 1.0.6
+Current version: 1.0.7
+
+### What's New in 1.0.7
+- Added keyboard shortcuts for 10-second jump forward/backward using left/right arrow keys
+- Added mouse wheel support for volume control
+- Bug fixes and performance improvements
 
 ### What's New in 1.0.6
 - Fixed media playback restart issue when playing audio/video after completion
@@ -198,10 +203,3 @@ Current version: 1.0.6
 - Improved folder browsing for all platforms (iOS, Android, Windows, macOS, Linux)
 - Bug fixes and performance improvements
 - set minSdk 21
-### What's New in 1.0.5
-- Added custom album art setting feature
-- Improved audio visualization with animated cassette player
-- Enhanced playlist management with smooth transitions between audio and video
-- Added multiple loop modes (None, One, All)
-- Fixed issues when transitioning between audio and video tracks
-- Various UI improvements and bug fixes

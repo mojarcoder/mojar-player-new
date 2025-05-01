@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:chewie/chewie.dart';
@@ -229,96 +230,107 @@ class _PlayerScreenState extends State<PlayerScreen>
                   _startHideControlsTimer();
                 }
               },
-              child: GestureDetector(
-                onSecondaryTapUp: (details) {
-                  if (!_disposed) {
-                    _showContextMenu(context, details.globalPosition);
+              child: Listener(
+                onPointerSignal: (pointerSignal) {
+                  if (pointerSignal is PointerScrollEvent) {
+                    // Use mouse wheel for volume control
+                    // Scrolling up increases volume, scrolling down decreases volume
+                    final delta =
+                        pointerSignal.scrollDelta.dy > 0 ? -0.05 : 0.05;
+                    _adjustVolume(delta);
                   }
                 },
-                // Add vertical drag detector for volume control
-                onVerticalDragUpdate: (details) {
-                  // Decrease volume on downward drag, increase on upward drag
-                  if (!_isMuted) {
-                    double newVolume = _volume - (details.delta.dy * 0.01);
-                    // Clamp volume between 0 and 2 (0% to 200%)
-                    newVolume = newVolume.clamp(0.0, 2.0);
-                    if (newVolume != _volume) {
-                      setState(() {
-                        _volume = newVolume;
-                      });
-                      _player.setVolume(_volume * 100);
-                      _showVolumeInfoOverlay();
-                    }
-                  }
-                },
-                // Add double-tap to exit fullscreen
-                onDoubleTap: () {
-                  if (_isFullscreen) {
-                    _exitFullscreen();
-                  }
-                },
-                child: FullscreenDragHandler(
-                  onExitFullscreen: () {
-                    if (mounted) {
-                      setState(() {
-                        _isFullscreen = false;
-                      });
+                child: GestureDetector(
+                  onSecondaryTapUp: (details) {
+                    if (!_disposed) {
+                      _showContextMenu(context, details.globalPosition);
                     }
                   },
-                  child: Stack(
-                    children: [
-                      _buildMediaDisplay(),
-                      if (_showControls) _buildControls(),
+                  // Add vertical drag detector for volume control
+                  onVerticalDragUpdate: (details) {
+                    // Decrease volume on downward drag, increase on upward drag
+                    if (!_isMuted) {
+                      double newVolume = _volume - (details.delta.dy * 0.01);
+                      // Clamp volume between 0 and 2 (0% to 200%)
+                      newVolume = newVolume.clamp(0.0, 2.0);
+                      if (newVolume != _volume) {
+                        setState(() {
+                          _volume = newVolume;
+                        });
+                        _player.setVolume(_volume * 100);
+                        _showVolumeInfoOverlay();
+                      }
+                    }
+                  },
+                  // Add double-tap to exit fullscreen
+                  onDoubleTap: () {
+                    if (_isFullscreen) {
+                      _exitFullscreen();
+                    }
+                  },
+                  child: FullscreenDragHandler(
+                    onExitFullscreen: () {
+                      if (mounted) {
+                        setState(() {
+                          _isFullscreen = false;
+                        });
+                      }
+                    },
+                    child: Stack(
+                      children: [
+                        _buildMediaDisplay(),
+                        if (_showControls) _buildControls(),
 
-                      // Volume indicator overlay
-                      if (_showVolumeInfo)
-                        Positioned(
-                          top: 50,
-                          right: 50,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _isMuted
-                                      ? Icons.volume_off
-                                      : _volume <= 0.5
-                                          ? Icons.volume_down
-                                          : _volume <= 1.0
-                                              ? Icons.volume_up
-                                              : Icons.volume_up,
-                                  color: _isMuted
-                                      ? Colors.red
-                                      : _volume > 1.0
-                                          ? Colors.orange
-                                          : Colors.white,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  _isMuted
-                                      ? "Muted"
-                                      : "${(_volume * 100).toInt()}%",
-                                  style: TextStyle(
+                        // Volume indicator overlay
+                        if (_showVolumeInfo)
+                          Positioned(
+                            top: 50,
+                            right: 50,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isMuted
+                                        ? Icons.volume_off
+                                        : _volume <= 0.5
+                                            ? Icons.volume_down
+                                            : _volume <= 1.0
+                                                ? Icons.volume_up
+                                                : Icons.volume_up,
                                     color: _isMuted
                                         ? Colors.red
                                         : _volume > 1.0
                                             ? Colors.orange
                                             : Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    _isMuted
+                                        ? "Muted"
+                                        : "${(_volume * 100).toInt()}%",
+                                    style: TextStyle(
+                                      color: _isMuted
+                                          ? Colors.red
+                                          : _volume > 1.0
+                                              ? Colors.orange
+                                              : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1582,6 +1594,12 @@ class _PlayerScreenState extends State<PlayerScreen>
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         // Decrease volume with Down arrow
         _adjustVolume(-0.05);
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        // Skip backward 10 seconds with Left arrow
+        _seekRelative(const Duration(seconds: -10));
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        // Skip forward 10 seconds with Right arrow
+        _seekRelative(const Duration(seconds: 10));
       } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
         // Toggle mute with M key
         setState(() => _isMuted = !_isMuted);
@@ -1653,12 +1671,14 @@ class _PlayerScreenState extends State<PlayerScreen>
               ShortcutItem(
                   keyName: '↑ / ↓', description: 'Increase/Decrease volume'),
               ShortcutItem(
-                  keyName: '← / →', description: 'Seek backward/forward (5s)'),
+                  keyName: '← / →', description: 'Seek backward/forward (10s)'),
               ShortcutItem(keyName: 'M', description: 'Mute/Unmute'),
               ShortcutItem(
                   keyName: 'Double-click', description: 'Exit fullscreen'),
               ShortcutItem(
                   keyName: 'Mouse drag ↑/↓', description: 'Adjust volume'),
+              ShortcutItem(
+                  keyName: 'Mouse wheel', description: 'Adjust volume'),
             ],
           ),
         ),
