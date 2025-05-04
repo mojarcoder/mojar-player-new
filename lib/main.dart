@@ -12,6 +12,8 @@ import 'screens/about_screen.dart';
 import 'screens/player_screen.dart';
 import 'services/folder_browser_service.dart';
 import 'services/platform_service.dart';
+import 'services/asset_protection_service.dart';
+import 'widgets/tampered_assets_warning.dart';
 
 // Love-inspired color scheme
 const Color primaryPink = Color(0xFFFF4D8D);
@@ -30,6 +32,9 @@ void main() async {
 
   // Initialize platform services
   await PlatformService.initialize();
+
+  // Initialize asset protection service
+  await AssetProtectionService.initialize();
 
   // Request permissions at startup
   final folderService = FolderBrowserService();
@@ -50,8 +55,68 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: primaryPink),
         useMaterial3: true,
       ),
-      home: SplashScreen(nextScreen: HomeScreen()),
+      home: const AssetVerificationScreen(),
     );
+  }
+}
+
+class AssetVerificationScreen extends StatefulWidget {
+  const AssetVerificationScreen({super.key});
+
+  @override
+  State<AssetVerificationScreen> createState() =>
+      _AssetVerificationScreenState();
+}
+
+class _AssetVerificationScreenState extends State<AssetVerificationScreen> {
+  bool _isVerifying = true;
+  bool _assetsValid = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _verifyAssets();
+  }
+
+  Future<void> _verifyAssets() async {
+    final assetsValid = await AssetProtectionService.verifyAssets();
+
+    if (mounted) {
+      setState(() {
+        _isVerifying = false;
+        _assetsValid = assetsValid;
+      });
+    }
+  }
+
+  void _exitApp() {
+    SystemNavigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isVerifying) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: primaryPink),
+              const SizedBox(height: 20),
+              Text(
+                'Verifying app integrity...',
+                style: TextStyle(color: darkPink, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (!_assetsValid) {
+      return TamperedAssetsWarning(onExit: _exitApp);
+    } else {
+      return SplashScreen(nextScreen: HomeScreen());
+    }
   }
 }
 
@@ -94,6 +159,51 @@ class _HomeScreenState extends State<HomeScreen>
       begin: 1.0,
       end: 1.2,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+    // Start asset verification
+    AssetProtectionService.startPeriodicVerification();
+
+    // Register callback for runtime tampering detection
+    AssetProtectionService.registerTamperingCallback(_handleTamperedAssets);
+  }
+
+  // Handle tampered assets detected during runtime
+  void _handleTamperedAssets(List<String> tamperedAssets) {
+    if (mounted) {
+      // Show a dialog and then navigate to the warning screen
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              title: const Text(
+                'Security Alert',
+                style: TextStyle(color: Colors.red),
+              ),
+              content: const Text(
+                'Asset tampering detected. The application will exit for security reasons.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Navigate to warning screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => TamperedAssetsWarning(
+                              onExit: () => SystemNavigator.pop(),
+                            ),
+                      ),
+                    );
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
+    }
   }
 
   // Function to launch URLs
@@ -109,6 +219,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    // Unregister the tampering callback and stop periodic verification
+    AssetProtectionService.unregisterTamperingCallback(_handleTamperedAssets);
+    AssetProtectionService.stopPeriodicVerification();
+
     _chewieController?.dispose();
     _videoController?.dispose();
     _controller.dispose();
