@@ -115,7 +115,7 @@ class _AboutScreenState extends State<AboutScreen>
       builder: (context) => AlertDialog(
         title: const Text('Keyboard Shortcuts',
             style: TextStyle(color: primaryPink)),
-        content: SingleChildScrollView(
+        content: const SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,7 +344,7 @@ class _AboutScreenState extends State<AboutScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Mojar Player Pro v1.0.8',
+                        'Mojar Player Pro v1.0.7',
                         style: TextStyle(fontSize: 16, color: darkPink),
                       ),
                       SizedBox(width: 5),
