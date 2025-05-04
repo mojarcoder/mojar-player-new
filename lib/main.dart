@@ -14,7 +14,9 @@ import 'screens/about_screen.dart';
 import 'screens/player_screen.dart';
 import 'services/folder_browser_service.dart';
 import 'services/platform_service.dart';
+import 'services/asset_integrity_service.dart';
 import 'widgets/shortcut_item.dart';
+import 'widgets/asset_integrity_warning.dart';
 
 // Love-inspired color scheme
 const Color primaryPink = Color(0xFFFF4D8D);
@@ -38,6 +40,9 @@ void main() async {
   // Initialize media_kit
   MediaKit.ensureInitialized();
 
+  // Initialize asset integrity service
+  await AssetIntegrityService.initialize();
+
   // Request permissions at startup
   final folderService = FolderBrowserService();
   await folderService.checkPermissions();
@@ -57,8 +62,86 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: primaryPink),
         useMaterial3: true,
       ),
-      home: const SplashScreen(nextScreen: HomeScreen()),
+      home: const AssetIntegrityCheck(
+          child: SplashScreen(nextScreen: HomeScreen())),
     );
+  }
+}
+
+class AssetIntegrityCheck extends StatefulWidget {
+  final Widget child;
+
+  const AssetIntegrityCheck({super.key, required this.child});
+
+  @override
+  State<AssetIntegrityCheck> createState() => _AssetIntegrityCheckState();
+}
+
+class _AssetIntegrityCheckState extends State<AssetIntegrityCheck> {
+  bool _isChecking = true;
+  bool _isValid = true;
+  List<String> _modifiedAssets = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAssetIntegrity();
+  }
+
+  Future<void> _checkAssetIntegrity() async {
+    try {
+      // Verify all assets
+      final verificationResults = await AssetIntegrityService.verifyAssets();
+
+      // Check if any assets have been modified
+      final modifiedAssets = verificationResults.entries
+          .where((entry) => !entry.value)
+          .map((entry) => entry.key)
+          .toList();
+
+      setState(() {
+        _isChecking = false;
+        _isValid = modifiedAssets.isEmpty;
+        _modifiedAssets = modifiedAssets;
+      });
+    } catch (e) {
+      debugPrint('Error checking asset integrity: $e');
+      setState(() {
+        _isChecking = false;
+        _isValid = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isChecking) {
+      // Show loading screen while checking assets
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: const Center(
+            child: CircularProgressIndicator(color: primaryPink),
+          ),
+        ),
+      );
+    } else if (!_isValid) {
+      // Show warning screen if assets are modified
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AssetIntegrityWarning(
+          modifiedAssets: _modifiedAssets,
+          onExit: () {
+            // This callback is called before exiting the app
+            debugPrint('Exiting application due to asset integrity violation');
+          },
+        ),
+      );
+    } else {
+      // Assets are valid, show the normal app
+      return widget.child;
+    }
   }
 }
 
@@ -105,6 +188,32 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Check fullscreen state when page is loaded
     _checkFullscreenState();
+
+    // Start periodic asset integrity checks (every 5 minutes)
+    _startAssetIntegrityChecks();
+  }
+
+  // Start periodic asset integrity checks
+  void _startAssetIntegrityChecks() {
+    AssetIntegrityService.startPeriodicChecks(
+      checkInterval: const Duration(minutes: 5),
+      onModifiedAssetsDetected: (modifiedAssets) {
+        // Show the integrity warning when an asset modification is detected
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => AssetIntegrityWarning(
+                modifiedAssets: modifiedAssets,
+                onExit: () {
+                  debugPrint(
+                      'Exiting due to runtime asset integrity violation');
+                },
+              ),
+            ),
+          );
+        }
+      },
+    );
   }
 
   // Check the current fullscreen state
@@ -153,6 +262,8 @@ class _HomeScreenState extends State<HomeScreen>
     _chewieController?.dispose();
     _videoController?.dispose();
     _controller.dispose();
+    // Stop asset integrity checks when the screen is disposed
+    AssetIntegrityService.stopPeriodicChecks();
     super.dispose();
   }
 
