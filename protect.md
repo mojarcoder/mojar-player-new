@@ -1,5 +1,7 @@
 # Asset Protection Implementation Guide
 
+> Version: 1.0.8 - Implementation available for all platforms (Android, iOS, Windows, macOS, Linux, Web)
+
 ## Overview
 
 This document explains how the Mojar Player Pro application implements asset integrity protection to prevent unauthorized modification of assets such as PNG, ICO, and JPG files. The system detects if anyone edits, replaces, or removes these files from the assets folder during runtime and shows a warning, preventing the application from being used if tampering is detected.
