@@ -8,18 +8,18 @@ You can install Mojar Player Pro using either the .deb package (for Debian/Ubunt
 
 ### Installing with .deb package (Debian/Ubuntu)
 
-1. Download the `mojar-player-pro_1.0.7.deb` package
+1. Download the `mojar-player-pro_1.0.8.deb` package
 2. Open terminal and navigate to the download directory
 3. Install using one of these methods:
 
    **Method 1:** Using the package manager:
    ```bash
-   sudo apt install ./mojar-player-pro_1.0.7.deb
+   sudo apt install ./mojar-player-pro_1.0.8.deb
    ```
 
    **Method 2:** Using dpkg:
    ```bash
-   sudo dpkg -i mojar-player-pro_1.0.7.deb
+   sudo dpkg -i mojar-player-pro_1.0.8.deb
    sudo apt-get install -f  # Install any missing dependencies
    ```
 

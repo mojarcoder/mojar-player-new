@@ -1,0 +1,33 @@
+{
+  "title": "Mojar Player Pro",
+  "icon": "Mojar-Player-Pro.icns",
+
+  "window": {
+    "size": {
+      "width": 600,
+      "height": 400
+    }
+  },
+  "contents": [
+    {
+      "x": 175,
+      "y": 190,
+      "type": "file",
+      "path": "Mojar Player Pro.app"
+    },
+    {
+      "x": 425,
+      "y": 190,
+      "type": "link",
+      "path": "/Applications"
+    },
+    {
+      "x": 300,
+      "y": 340,
+      "type": "file",
+      "path": "uninstall-mojar-player.command"
+    }
+  ]
+}
+
+

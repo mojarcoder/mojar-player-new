@@ -235,7 +235,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                         Text(
-                          'Player',
+                          'Player Pro',
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
