@@ -236,21 +236,14 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                         Text(
-                          'Player',
+                          'Player Pro',
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                        Text(
-                          'Pro',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        
                         SizedBox(width: 5),
                         Icon(Icons.favorite, color: Colors.white, size: 24),
                       ],
