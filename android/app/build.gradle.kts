@@ -31,12 +31,13 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            val storePath = keystoreProperties["storeFile"] as String
-            val userHomeDir = System.getProperty("user.home")  // Works on Windows, macOS, Linux
-            storeFile = File(userHomeDir, storePath)
-            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"]?.toString() ?: ""
+            keyPassword = keystoreProperties["keyPassword"]?.toString() ?: ""
+            val storePath = keystoreProperties["storeFile"]?.toString() ?: ""
+            if (storePath.isNotEmpty()) {
+                storeFile = rootProject.file(storePath)
+                storePassword = keystoreProperties["storePassword"]?.toString() ?: ""
+            }
         }
     }
 
@@ -45,8 +46,8 @@ android {
         applicationId = "com.mojarcoder.mojar_player_pro"
         minSdk = 21
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = 8
+        versionName = "1.0.8"
         
         // Enable multidex
         multiDexEnabled = true
