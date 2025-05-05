@@ -243,6 +243,14 @@ class _SplashScreenState extends State<SplashScreen>
                             color: Colors.white,
                           ),
                         ),
+                        Text(
+                          'Pro',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                         SizedBox(width: 5),
                         Icon(Icons.favorite, color: Colors.white, size: 24),
                       ],
@@ -264,7 +272,7 @@ class _SplashScreenState extends State<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
-                      'v1.0.6',
+                      'v1.0.8',
                       style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                   ),
