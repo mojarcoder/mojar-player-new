@@ -6,7 +6,6 @@ import 'package:chewie/chewie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:media_kit/media_kit.dart';
-import 'dart:io';
 
 import 'screens/splash_screen.dart';
 import 'screens/folder_browser_screen.dart';
