@@ -6,7 +6,6 @@ import 'package:chewie/chewie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:media_kit/media_kit.dart';
-import 'dart:io';
 
 import 'screens/splash_screen.dart';
 import 'screens/folder_browser_screen.dart';
@@ -117,11 +116,11 @@ class _AssetIntegrityCheckState extends State<AssetIntegrityCheck> {
   Widget build(BuildContext context) {
     if (_isChecking) {
       // Show loading screen while checking assets
-      return MaterialApp(
+      return const MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           backgroundColor: Colors.white,
-          body: const Center(
+          body: Center(
             child: CircularProgressIndicator(color: primaryPink),
           ),
         ),
@@ -727,7 +726,7 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (context) => AlertDialog(
         title: const Text('Keyboard Shortcuts',
             style: TextStyle(color: primaryPink)),
-        content: SingleChildScrollView(
+        content: const SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

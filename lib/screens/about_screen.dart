@@ -115,7 +115,7 @@ class _AboutScreenState extends State<AboutScreen>
       builder: (context) => AlertDialog(
         title: const Text('Keyboard Shortcuts',
             style: TextStyle(color: primaryPink)),
-        content: SingleChildScrollView(
+        content: const SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

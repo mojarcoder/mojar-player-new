@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.mojarcoder.mojar_player_pro"
+    namespace = "com.mojarcoder.mojar-player-pro"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -31,22 +31,23 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            val storePath = keystoreProperties["storeFile"] as String
-            val userHomeDir = System.getProperty("user.home")  // Works on Windows, macOS, Linux
-            storeFile = File(userHomeDir, storePath)
-            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"]?.toString() ?: ""
+            keyPassword = keystoreProperties["keyPassword"]?.toString() ?: ""
+            val storePath = keystoreProperties["storeFile"]?.toString() ?: ""
+            if (storePath.isNotEmpty()) {
+                storeFile = rootProject.file(storePath)
+                storePassword = keystoreProperties["storePassword"]?.toString() ?: ""
+            }
         }
     }
 
     defaultConfig {
         // Specify your own unique Application ID
-        applicationId = "com.mojarcoder.mojar_player_pro"
+        applicationId = "com.mojarcoder.mojar-player-pro"
         minSdk = 21
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = 8
+        versionName = "1.0.8"
         
         // Enable multidex
         multiDexEnabled = true
