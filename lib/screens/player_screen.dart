@@ -430,10 +430,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                 onPressed: () => _seekRelative(const Duration(seconds: -10)),
               ),
               FloatingActionButton(
-                onPressed: () {
-                  setState(() => _isPlaying = !_isPlaying);
-                  _isPlaying ? _player.play() : _player.pause();
-                },
+                onPressed: _togglePlayPause,
                 backgroundColor: primaryPink,
                 child: Icon(
                   _isPlaying ? Icons.pause : Icons.play_arrow,
@@ -1585,6 +1582,17 @@ class _PlayerScreenState extends State<PlayerScreen>
     });
   }
 
+  // Toggle play/pause state
+  void _togglePlayPause() {
+    if (!_disposed && mounted) {
+      setState(() => _isPlaying = !_isPlaying);
+      _isPlaying ? _player.play() : _player.pause();
+      if (_isPlaying) {
+        _startHideControlsTimer();
+      }
+    }
+  }
+
   // Handle keyboard key presses
   void _handleKeyPress(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
@@ -1612,6 +1620,9 @@ class _PlayerScreenState extends State<PlayerScreen>
       } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
         // Toggle fullscreen with F key
         _toggleFullscreen();
+      } else if (event.logicalKey == LogicalKeyboardKey.space) {
+        // Toggle play/pause with Space key
+        _togglePlayPause();
       }
     }
   }
