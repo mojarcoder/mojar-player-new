@@ -5,4 +5,4 @@
 cd /usr/local/lib/mojar-player-pro
 
 # Launch the application
-./mojar_player_pro "$@"
+./mojar-player-pro "$@"

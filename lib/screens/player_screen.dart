@@ -219,10 +219,10 @@ class _PlayerScreenState extends State<PlayerScreen>
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
-          child: RawKeyboardListener(
+          child: KeyboardListener(
             focusNode: FocusNode()..requestFocus(),
             autofocus: true,
-            onKey: _handleKeyPress,
+            onKeyEvent: _handleKeyPress,
             child: MouseRegion(
               onHover: (_) {
                 if (!_disposed && mounted) {
@@ -1057,25 +1057,61 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // Store current playing state
     final wasPlaying = _player.state.playing;
+    debugPrint('Media was playing before About screen: $wasPlaying');
 
     // Pause playback before navigation
     if (wasPlaying) {
-      _player.pause();
+      await _player.pause();
+      debugPrint('Media paused before navigating to About screen');
     }
 
     if (!mounted || _disposed) return;
 
     try {
-      final result = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (context) => const AboutScreen()),
-      );
+      // Use a flag to prevent multiple callbacks
+      bool hasReturned = false;
 
-      // Only resume if we actually returned from the About screen
-      if (result == true && mounted && !_disposed && wasPlaying) {
-        _player.play();
-      }
+      // Create a PageRouteBuilder with a custom transition to reduce flickering
+      await Navigator.of(context).push(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 200),
+          reverseTransitionDuration: const Duration(milliseconds: 200),
+          pageBuilder: (context, animation, secondaryAnimation) => AboutScreen(
+            onReturn: () {
+              // Prevent multiple executions
+              if (hasReturned) return;
+              hasReturned = true;
+
+              // When returning from About screen, we keep the media paused
+              // The user will need to press play or space bar to resume playback
+              if (mounted && !_disposed) {
+                debugPrint('Returned from About screen, media remains paused');
+                // Update UI to reflect paused state
+                setState(() {
+                  _isPlaying = false;
+                });
+              }
+            },
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // Use a fade transition instead of the default slide transition
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
+        ),
+      );
     } catch (e) {
       debugPrint('Navigation error: $e');
+
+      // If there was an error during navigation, ensure media is paused
+      if (mounted && !_disposed) {
+        _player.pause();
+        setState(() {
+          _isPlaying = false;
+        });
+      }
     }
   }
 
@@ -1330,18 +1366,46 @@ class _PlayerScreenState extends State<PlayerScreen>
       final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
 
       if (file != null) {
-        setState(() {
-          _albumArtPath = file.path;
-        });
+        if (mounted) {
+          setState(() {
+            _albumArtPath = file.path;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Album art set successfully'),
+              backgroundColor: primaryPink,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error setting album art: $e');
+    }
+  }
+
+  // Add subtitle track safely
+  Future<void> _addSubtitleTrack(String path) async {
+    try {
+      await _player.setSubtitleTrack(SubtitleTrack.uri(path));
+      if (mounted) {
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Album art set successfully'),
+            content: Text('Subtitle file loaded successfully'),
             backgroundColor: primaryPink,
           ),
         );
       }
     } catch (e) {
-      print('Error setting album art: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading subtitle file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      debugPrint('Error loading subtitle file: $e');
     }
   }
 
@@ -1361,27 +1425,8 @@ class _PlayerScreenState extends State<PlayerScreen>
             await _player.setSubtitleTrack(_subtitleTracks[index]);
           }
         },
-        onSubtitleAdded: (path) async {
-          try {
-            await _player.setSubtitleTrack(SubtitleTrack.uri(path));
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Subtitle file loaded successfully'),
-                  backgroundColor: primaryPink,
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error loading subtitle file: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
+        onSubtitleAdded: (path) {
+          _addSubtitleTrack(path);
         },
         onSubtitleDelayChanged: (delay) async {
           setState(() => _subtitleDelay = delay);
@@ -1549,20 +1594,83 @@ class _PlayerScreenState extends State<PlayerScreen>
   // Exit fullscreen mode
   Future<void> _exitFullscreen() async {
     try {
-      bool success = await PlatformService.exitFullscreen();
-      if (success && mounted) {
+      debugPrint('Explicitly exiting fullscreen from player screen');
+
+      // First check if we're actually in fullscreen
+      final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+      if (!isCurrentlyFullscreen) {
+        debugPrint('Already in windowed mode according to platform');
+        if (mounted && !_disposed) {
+          setState(() {
+            _isFullscreen = false;
+          });
+        }
+        return;
+      }
+
+      // Try up to 3 times to exit fullscreen with increasing delays
+      bool success = false;
+      int attempts = 0;
+
+      while (!success && attempts < 3) {
+        attempts++;
+
+        // Call the platform service directly
+        success = await PlatformService.exitFullscreen();
+        debugPrint('Exit fullscreen attempt $attempts result: $success');
+
+        // Wait longer between attempts
+        await Future.delayed(Duration(milliseconds: 300 * attempts));
+
+        // Check if we're still in fullscreen
+        final stillFullscreen = await PlatformService.isFullscreen();
+        debugPrint('After exit attempt $attempts: stillFullscreen = $stillFullscreen');
+
+        // If we're no longer in fullscreen, we're done
+        if (!stillFullscreen) {
+          success = true;
+          break;
+        }
+      }
+
+      // If we're still in fullscreen after all attempts, try one last approach
+      final finalCheck = await PlatformService.isFullscreen();
+      if (finalCheck) {
+        debugPrint('Still in fullscreen after all attempts, trying direct native call');
+        // Try one more direct call to exitFullscreen
+        await PlatformService.exitFullscreen();
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      if (mounted && !_disposed) {
+        // Always check the actual state
+        final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+
         setState(() {
-          _isFullscreen = false;
+          _isFullscreen = isCurrentlyFullscreen;
         });
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to exit fullscreen')),
-          );
+
+        if (_isFullscreen) {
+          debugPrint('Still in fullscreen after all exit attempts');
+          _showErrorSnackbar('Failed to exit fullscreen');
+        } else {
+          debugPrint('Successfully exited fullscreen');
         }
       }
     } catch (e) {
       debugPrint('Error exiting fullscreen: $e');
+
+      // Even if there's an error, try to get the current state
+      if (mounted && !_disposed) {
+        try {
+          final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+          setState(() {
+            _isFullscreen = isCurrentlyFullscreen;
+          });
+        } catch (_) {
+          // Ignore errors in error handler
+        }
+      }
     }
   }
 
@@ -1594,33 +1702,38 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   // Handle keyboard key presses
-  void _handleKeyPress(RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+  void _handleKeyPress(KeyEvent event) {
+    if (_disposed) return;
+
+    if (event is KeyDownEvent) {
+      final logicalKey = event.logicalKey;
+      debugPrint('Key pressed: ${logicalKey.keyLabel}');
+
+      if (logicalKey == LogicalKeyboardKey.arrowUp) {
         // Increase volume with Up arrow
         _adjustVolume(0.05);
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      } else if (logicalKey == LogicalKeyboardKey.arrowDown) {
         // Decrease volume with Down arrow
         _adjustVolume(-0.05);
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      } else if (logicalKey == LogicalKeyboardKey.arrowLeft) {
         // Skip backward 10 seconds with Left arrow
         _seekRelative(const Duration(seconds: -10));
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      } else if (logicalKey == LogicalKeyboardKey.arrowRight) {
         // Skip forward 10 seconds with Right arrow
         _seekRelative(const Duration(seconds: 10));
-      } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
+      } else if (logicalKey == LogicalKeyboardKey.keyM) {
         // Toggle mute with M key
         setState(() => _isMuted = !_isMuted);
         _player.setVolume(_isMuted ? 0 : _volume * 100);
         _showVolumeInfoOverlay();
-      } else if (event.logicalKey == LogicalKeyboardKey.escape &&
-          _isFullscreen) {
+      } else if (logicalKey == LogicalKeyboardKey.escape && _isFullscreen) {
         // Exit fullscreen with ESC key
         _exitFullscreen();
-      } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+      } else if (logicalKey == LogicalKeyboardKey.keyF) {
         // Toggle fullscreen with F key
+        debugPrint('F key pressed, toggling fullscreen');
         _toggleFullscreen();
-      } else if (event.logicalKey == LogicalKeyboardKey.space) {
+      } else if (logicalKey == LogicalKeyboardKey.space) {
         // Toggle play/pause with Space key
         _togglePlayPause();
       }
@@ -1647,20 +1760,75 @@ class _PlayerScreenState extends State<PlayerScreen>
   // Toggle fullscreen mode
   Future<void> _toggleFullscreen() async {
     try {
-      bool success = false;
-      if (_isFullscreen) {
-        success = await PlatformService.exitFullscreen();
-      } else {
-        success = await PlatformService.enterFullscreen();
-      }
+      if (_disposed) return;
 
-      if (success && mounted) {
+      debugPrint('Toggling fullscreen from player screen');
+
+      // Store the current state before toggling
+      final wasFullscreen = _isFullscreen;
+      debugPrint('Current fullscreen state in UI: $wasFullscreen');
+
+      // Use the platform service's toggle method
+      final success = await PlatformService.toggleFullscreen();
+
+      if (mounted && !_disposed) {
+        // Always check the current state after toggling
+        final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+
+        // Update UI state
         setState(() {
-          _isFullscreen = !_isFullscreen;
+          _isFullscreen = isCurrentlyFullscreen;
         });
+
+        debugPrint('Toggled fullscreen. Success: $success, New state: $_isFullscreen');
+
+        // If the toggle failed or the state didn't change as expected, try a direct approach
+        if (!success || _isFullscreen == wasFullscreen) {
+          debugPrint('Fullscreen toggle didn\'t work as expected, trying direct approach');
+
+          // Try the opposite of what we currently have in the UI
+          bool directSuccess;
+          if (_isFullscreen) {
+            directSuccess = await PlatformService.exitFullscreen();
+            debugPrint('Directly called exitFullscreen, result: $directSuccess');
+          } else {
+            directSuccess = await PlatformService.enterFullscreen();
+            debugPrint('Directly called enterFullscreen, result: $directSuccess');
+          }
+
+          // Check state again and update UI
+          if (mounted && !_disposed) {
+            final finalState = await PlatformService.isFullscreen();
+            setState(() {
+              _isFullscreen = finalState;
+            });
+            debugPrint('Final fullscreen state: $_isFullscreen');
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error toggling fullscreen: $e');
+
+      // Even if there's an error, try to get the current state
+      if (mounted && !_disposed) {
+        try {
+          final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+          setState(() {
+            _isFullscreen = isCurrentlyFullscreen;
+          });
+        } catch (_) {
+          // Ignore errors in error handler
+        }
+      }
+    }
+  }
+
+  // Show error snackbar safely
+  void _showErrorSnackbar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 

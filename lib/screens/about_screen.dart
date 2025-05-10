@@ -12,7 +12,9 @@ const Color lightPink = Color(0xFFFFB6C1);
 const Color darkPink = Color(0xFFE91E63);
 
 class AboutScreen extends StatefulWidget {
-  const AboutScreen({super.key});
+  final VoidCallback? onReturn;
+
+  const AboutScreen({super.key, this.onReturn});
 
   @override
   State<AboutScreen> createState() => _AboutScreenState();
@@ -71,40 +73,129 @@ class _AboutScreenState extends State<AboutScreen>
     }
     _controller.dispose();
 
-    Navigator.of(context).pop();
+    // Call the onReturn callback before popping
+    if (widget.onReturn != null) {
+      widget.onReturn!();
+    }
+
+    // Pop immediately without delay to reduce flickering
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   // Toggle fullscreen mode
   Future<void> _toggleFullscreen() async {
     try {
-      bool success = false;
-      if (_isFullscreen) {
-        success = await PlatformService.exitFullscreen();
-      } else {
-        success = await PlatformService.enterFullscreen();
-      }
+      debugPrint('Toggling fullscreen from about screen');
 
-      if (success && mounted) {
+      // Store the current state before toggling
+      final wasFullscreen = _isFullscreen;
+      debugPrint('Current fullscreen state in UI: $wasFullscreen');
+
+      // Use the platform service's toggle method
+      final success = await PlatformService.toggleFullscreen();
+
+      if (mounted) {
+        // Always check the current state after toggling
+        final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+
+        // Update UI state
         setState(() {
-          _isFullscreen = !_isFullscreen;
+          _isFullscreen = isCurrentlyFullscreen;
         });
+
+        debugPrint('Toggled fullscreen. Success: $success, New state: $_isFullscreen');
+
+        // If the toggle failed or the state didn't change as expected, try a direct approach
+        if (!success || _isFullscreen == wasFullscreen) {
+          debugPrint('Fullscreen toggle didn\'t work as expected, trying direct approach');
+
+          // Try the opposite of what we currently have in the UI
+          bool directSuccess;
+          if (_isFullscreen) {
+            directSuccess = await PlatformService.exitFullscreen();
+            debugPrint('Directly called exitFullscreen, result: $directSuccess');
+          } else {
+            directSuccess = await PlatformService.enterFullscreen();
+            debugPrint('Directly called enterFullscreen, result: $directSuccess');
+          }
+
+          // Check state again and update UI
+          if (mounted) {
+            final finalState = await PlatformService.isFullscreen();
+            setState(() {
+              _isFullscreen = finalState;
+            });
+            debugPrint('Final fullscreen state: $_isFullscreen');
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error toggling fullscreen: $e');
+
+      // Even if there's an error, try to get the current state
+      if (mounted) {
+        try {
+          final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+          setState(() {
+            _isFullscreen = isCurrentlyFullscreen;
+          });
+        } catch (_) {
+          // Ignore errors in error handler
+        }
+      }
     }
   }
 
   // Exit fullscreen mode
   Future<void> _exitFullscreen() async {
     try {
-      bool success = await PlatformService.exitFullscreen();
-      if (success && mounted) {
+      debugPrint('Explicitly exiting fullscreen from about screen');
+
+      // Try up to 3 times to exit fullscreen
+      bool success = false;
+      int attempts = 0;
+
+      while (!success && attempts < 3) {
+        attempts++;
+        success = await PlatformService.exitFullscreen();
+        debugPrint('Exit fullscreen attempt $attempts result: $success');
+
+        if (!success) {
+          // Wait a bit before trying again
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+      }
+
+      if (mounted) {
+        // Always check the actual state
+        final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+
         setState(() {
-          _isFullscreen = false;
+          _isFullscreen = isCurrentlyFullscreen;
         });
+
+        if (_isFullscreen) {
+          debugPrint('Still in fullscreen after exit attempts');
+        } else {
+          debugPrint('Successfully exited fullscreen');
+        }
       }
     } catch (e) {
       debugPrint('Error exiting fullscreen: $e');
+
+      // Even if there's an error, try to get the current state
+      if (mounted) {
+        try {
+          final isCurrentlyFullscreen = await PlatformService.isFullscreen();
+          setState(() {
+            _isFullscreen = isCurrentlyFullscreen;
+          });
+        } catch (_) {
+          // Ignore errors in error handler
+        }
+      }
     }
   }
 
@@ -141,16 +232,21 @@ class _AboutScreenState extends State<AboutScreen>
   Widget build(BuildContext context) {
     if (_disposed) return const SizedBox.shrink();
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (!_disposed) {
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) {
+        if (didPop && !_disposed) {
           _disposed = true;
           if (_controller.isAnimating) {
             _controller.stop();
           }
           _controller.dispose();
+
+          // Call the onReturn callback when popping
+          if (widget.onReturn != null) {
+            widget.onReturn!();
+          }
         }
-        return true;
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -177,15 +273,16 @@ class _AboutScreenState extends State<AboutScreen>
             ),
           ],
         ),
-        body: RawKeyboardListener(
+        body: KeyboardListener(
           focusNode: FocusNode()..requestFocus(),
           autofocus: true,
-          onKey: (event) {
-            if (event is RawKeyDownEvent) {
-              if (event.logicalKey == LogicalKeyboardKey.escape &&
-                  _isFullscreen) {
+          onKeyEvent: (event) {
+            if (event is KeyDownEvent) {
+              final logicalKey = event.logicalKey;
+              if (logicalKey == LogicalKeyboardKey.escape && _isFullscreen) {
                 _exitFullscreen();
-              } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+              } else if (logicalKey == LogicalKeyboardKey.keyF) {
+                debugPrint('F key pressed in About screen');
                 _toggleFullscreen();
               }
             }

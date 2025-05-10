@@ -76,7 +76,7 @@ gboolean my_application_is_fullscreen(MyApplication* self) {
 
   // Update our tracking to match reality
   self->is_fullscreen = is_fullscreen;
-  
+
   return self->is_fullscreen;
 }
 
@@ -84,34 +84,34 @@ gboolean my_application_is_fullscreen(MyApplication* self) {
 static void method_call_handler(FlMethodChannel* channel, FlMethodCall* method_call, gpointer user_data) {
   MyApplication* self = MY_APPLICATION(user_data);
   const gchar* method = fl_method_call_get_name(method_call);
-  
+
   if (strcmp(method, "enterFullscreen") == 0) {
     // First check the current state
     gboolean currentState = my_application_is_fullscreen(self);
-    
+
     if (!currentState && self->window) {
       gtk_window_fullscreen(self->window);
-      
+
       // Ensure window state changes are processed
       while (gtk_events_pending()) {
         gtk_main_iteration();
       }
-      
+
       self->is_fullscreen = TRUE;
     }
     fl_method_call_respond_success(method_call, fl_value_new_bool(self->is_fullscreen), nullptr);
   } else if (strcmp(method, "exitFullscreen") == 0) {
     // First check the current state
     gboolean currentState = my_application_is_fullscreen(self);
-    
+
     if (currentState && self->window) {
       gtk_window_unfullscreen(self->window);
-      
+
       // Ensure window state changes are processed
       while (gtk_events_pending()) {
         gtk_main_iteration();
       }
-      
+
       self->is_fullscreen = FALSE;
     }
     fl_method_call_respond_success(method_call, fl_value_new_bool(FALSE), nullptr);
@@ -131,7 +131,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
-  
+
   // Store window reference
   self->window = window;
   self->is_fullscreen = FALSE;
@@ -179,7 +179,7 @@ static void my_application_activate(GApplication* application) {
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
       fl_engine_get_binary_messenger(fl_view_get_engine(view)),
-      "com.mojarplayer.mojar-player-pro/system",
+      "com.mojarplayer.mojar_player_pro/system",
       FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, method_call_handler, self, nullptr);
 

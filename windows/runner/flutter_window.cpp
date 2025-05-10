@@ -43,12 +43,12 @@ bool FlutterWindow::EnterFullscreen() {
 
   // Set fullscreen style (no border, etc.)
   SetWindowLong(hwnd, GWL_STYLE, windowed_style_ & ~(WS_CAPTION | WS_THICKFRAME));
-  SetWindowLong(hwnd, GWL_EXSTYLE, windowed_ex_style_ & 
+  SetWindowLong(hwnd, GWL_EXSTYLE, windowed_ex_style_ &
                 ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
 
   // Set window to cover entire monitor
   SetWindowPos(hwnd, HWND_TOP,
-               monitor_info.rcMonitor.left, 
+               monitor_info.rcMonitor.left,
                monitor_info.rcMonitor.top,
                monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
                monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
@@ -68,18 +68,37 @@ bool FlutterWindow::ExitFullscreen() {
     return false;
   }
 
+  // Ensure we have valid windowed style values
+  if (windowed_style_ == 0) {
+    // Default style if we don't have stored values
+    windowed_style_ = WS_OVERLAPPEDWINDOW;
+  }
+
   // Restore the window style and position
   SetWindowLong(hwnd, GWL_STYLE, windowed_style_);
   SetWindowLong(hwnd, GWL_EXSTYLE, windowed_ex_style_);
 
+  // Ensure we have valid window position
+  if (windowed_rect_.right == 0 || windowed_rect_.bottom == 0) {
+    // Use default size if we don't have stored values
+    windowed_rect_.left = 100;
+    windowed_rect_.top = 100;
+    windowed_rect_.right = 1024 + windowed_rect_.left;
+    windowed_rect_.bottom = 768 + windowed_rect_.top;
+  }
+
   // Restore the window position and size
   SetWindowPos(hwnd, HWND_TOP,
-               windowed_rect_.left, 
+               windowed_rect_.left,
                windowed_rect_.top,
                windowed_rect_.right - windowed_rect_.left,
                windowed_rect_.bottom - windowed_rect_.top,
-               SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+               SWP_NOZORDER | SWP_FRAMECHANGED);
 
+  // Force a redraw to ensure the window updates properly
+  RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+
+  // Set the flag after all operations are complete
   is_fullscreen_ = false;
   return true;
 }

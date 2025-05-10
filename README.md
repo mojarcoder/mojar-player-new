@@ -112,6 +112,32 @@ After installation, you can:
 
 ### Troubleshooting Installation Issues
 
+#### Application Doesn't Launch After Installation
+If the application doesn't launch after installing the .deb or .rpm package:
+
+1. Check if the executable name matches in the launcher script:
+   ```bash
+   # Check the executable name in the installation directory
+   ls -la /usr/local/lib/mojar-player-pro/
+
+   # Check the launcher script
+   cat /usr/local/bin/mojar-player-pro
+   ```
+
+2. Make sure the launcher script is using the correct executable name:
+   ```bash
+   # Edit the launcher script if needed
+   sudo nano /usr/local/bin/mojar-player-pro
+
+   # Make sure it contains the correct executable name:
+   # ./mojar-player-pro instead of ./mojar_player_pro
+   ```
+
+3. Make sure the launcher script is executable:
+   ```bash
+   sudo chmod +x /usr/local/bin/mojar-player-pro
+   ```
+
 #### Missing libmpv.so.2
 If you encounter an error like `error while loading shared libraries: libmpv.so.2: cannot open shared object file`:
 ```bash
@@ -287,7 +313,7 @@ Description: A beautiful media player application
    # Create launcher script
    echo '#!/bin/sh
 cd /usr/local/lib/mojar-player-pro
-./mojar_player_pro "$@"' > debian/usr/local/bin/mojar-player-pro
+./mojar-player-pro "$@"' > debian/usr/local/bin/mojar-player-pro
    chmod 755 debian/usr/local/bin/mojar-player-pro
 
    # Create desktop entry
@@ -455,6 +481,7 @@ Current version: 1.0.9
   - Added Debian package (.deb) for easier installation on Debian/Ubuntu-based systems
   - Added RPM package (.rpm) for easier installation on Fedora/RHEL/CentOS-based systems
   - Improved package dependencies to ensure proper installation
+  - Fixed launcher script to correctly reference the executable name
 
 - **Linux Enhancements:**
   - Fixed Linux dependencies for media playback

@@ -10,7 +10,7 @@ VERSION="1.0.9"
 echo "Creating package directory structure..."
 mkdir -p build/linux_package/DEBIAN
 mkdir -p build/linux_package/usr/local/bin
-mkdir -p build/linux_package/usr/local/lib/mojar_player_pro
+mkdir -p build/linux_package/usr/local/lib/mojar-player-pro
 mkdir -p build/linux_package/usr/share/applications
 mkdir -p build/linux_package/usr/share/pixmaps
 
@@ -60,7 +60,7 @@ cat > build/linux_package/usr/share/applications/mojar-player-pro.desktop << EOF
 Type=Application
 Name=Mojar Player Pro
 Comment=Professional Media Player
-Exec=mojar_player_pro
+Exec=mojar-player-pro
 Icon=mojar-player-pro
 Categories=AudioVideo;Player;Video;Audio;
 Terminal=false
@@ -74,15 +74,15 @@ cp assets/images/mojar_icon.png build/linux_package/usr/share/pixmaps/mojar-play
 
 # Create wrapper script
 echo "Creating wrapper script..."
-cat > build/linux_package/usr/local/bin/mojar_player_pro << EOF
+cat > build/linux_package/usr/local/bin/mojar-player-pro << EOF
 #!/bin/sh
-exec /usr/local/lib/mojar_player_pro/mojar-player-pro "\$@"
+exec /usr/local/lib/mojar-player-pro/mojar-player-pro "\$@"
 EOF
-chmod 755 build/linux_package/usr/local/bin/mojar_player_pro
+chmod 755 build/linux_package/usr/local/bin/mojar-player-pro
 
 # Copy the built application from bundle
 echo "Copying application files from bundle..."
-cp -r build/linux/x64/release/bundle/* build/linux_package/usr/local/lib/mojar_player_pro/
+cp -r build/linux/x64/release/bundle/* build/linux_package/usr/local/lib/mojar-player-pro/
 
 # Build the .deb package
 echo "Building .deb package..."
