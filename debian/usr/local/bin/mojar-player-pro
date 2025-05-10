@@ -1,0 +1,8 @@
+#!/bin/sh
+# Launcher script for Mojar Player Pro
+
+# Change to the application directory
+cd /usr/local/lib/mojar-player-pro
+
+# Launch the application
+./mojar_player_pro "$@"

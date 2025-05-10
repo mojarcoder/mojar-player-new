@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Mojar Player Pro
+Comment=A beautiful media player application
+Exec=/usr/local/bin/mojar-player-pro
+Icon=mojar-player-pro
+Terminal=false
+Type=Application
+Categories=AudioVideo;Player;
+Keywords=Media;Player;Audio;Video;

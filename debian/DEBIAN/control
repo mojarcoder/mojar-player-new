@@ -1,0 +1,10 @@
+Package: mojar-player-pro
+Version: 1.0.9
+Section: multimedia
+Priority: optional
+Architecture: amd64
+Depends: libmpv-dev, mpv
+Maintainer: MojarCoder <mojarcoder@example.com>
+Description: A beautiful media player application
+ Mojar Player Pro is a feature-rich media player built with Flutter.
+ It supports various audio and video formats and provides a modern user interface.

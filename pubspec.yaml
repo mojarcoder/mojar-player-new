@@ -23,19 +23,21 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
-  
+
   # Media playback dependencies with compatible versions
   media_kit: ^1.1.8
   media_kit_video: ^1.2.4
+  media_kit_libs_linux: ^1.2.1
+  # media_kit_libs_linux_video: ^1.1.2  # This package doesn't exist
   media_kit_libs_android_video: ^1.3.6
   media_kit_libs_ios_video: ^1.1.4
   media_kit_libs_macos_video: ^1.1.4
   media_kit_libs_windows_video: ^1.0.9
-  
+
   # Use video_player with chewie for fallback/compatibility
   video_player: ^2.8.3
   chewie: ^1.7.5
-  
+
   # Other media and file handling
   audioplayers: ^5.2.1
   path_provider: ^2.1.2
