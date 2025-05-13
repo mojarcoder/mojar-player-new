@@ -97,7 +97,30 @@ class PlatformService {
 
   static Future<bool> exitFullscreen() async {
     try {
+      // First check if we're actually in fullscreen
+      final isCurrentlyFullscreen = await isFullscreen();
+      if (!isCurrentlyFullscreen) {
+        debugPrint('Already in windowed mode, no need to exit fullscreen');
+        return true;
+      }
+
+      debugPrint('Calling native exitFullscreen method');
       final result = await _channel.invokeMethod('exitFullscreen');
+
+      // Add a delay to ensure the window has time to update
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // Verify the state changed
+      final newState = await isFullscreen();
+      debugPrint('After exitFullscreen: isFullscreen = $newState, expected: false');
+
+      // If still in fullscreen, try one more time
+      if (newState) {
+        debugPrint('Still in fullscreen after first attempt, trying again');
+        await _channel.invokeMethod('exitFullscreen');
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
       return result ?? false;
     } catch (e) {
       debugPrint('Error exiting fullscreen: $e');
@@ -111,11 +134,59 @@ class PlatformService {
       if (!_initialized) {
         await initialize();
       }
-      
-      debugPrint('Sending toggleFullscreen to platform');
-      final result = await _channel.invokeMethod('toggleFullscreen');
-      debugPrint('Received toggleFullscreen result: $result');
-      return result ?? false;
+
+      // First check the current fullscreen state
+      final currentState = await isFullscreen();
+      debugPrint('Current fullscreen state before toggle: $currentState');
+
+      // Instead of using the native toggleFullscreen, explicitly call enter or exit
+      // This gives us more control over the process
+      bool result;
+
+      if (currentState) {
+        // We're in fullscreen mode, so exit fullscreen
+        debugPrint('Currently in fullscreen, explicitly calling exitFullscreen');
+
+        // Try up to 3 times to exit fullscreen
+        result = false;
+        int attempts = 0;
+
+        while (!result && attempts < 3) {
+          attempts++;
+          debugPrint('Exit fullscreen attempt $attempts');
+
+          // Call the native method
+          result = await _channel.invokeMethod('exitFullscreen') ?? false;
+
+          // Add a delay to ensure the window has time to update
+          await Future.delayed(const Duration(milliseconds: 300));
+
+          // Check if we're still in fullscreen
+          final stillFullscreen = await isFullscreen();
+          debugPrint('After exit attempt $attempts: stillFullscreen = $stillFullscreen');
+
+          // If we're still in fullscreen, try again
+          if (stillFullscreen) {
+            result = false;
+          } else {
+            result = true;
+            break;
+          }
+        }
+      } else {
+        // We're in windowed mode, so enter fullscreen
+        debugPrint('Currently not in fullscreen, explicitly calling enterFullscreen');
+        result = await enterFullscreen();
+
+        // Add a delay to ensure the window has time to update
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
+      // Final check to ensure UI state matches actual state
+      final finalState = await isFullscreen();
+      debugPrint('Final fullscreen state after toggle: $finalState, expected: ${!currentState}');
+
+      return result;
     } catch (e) {
       debugPrint('Error toggling fullscreen: $e');
       return false;
@@ -128,7 +199,7 @@ class PlatformService {
       if (!_initialized) {
         await initialize();
       }
-      
+
       debugPrint('Sending isFullscreen to platform');
       final result = await _channel.invokeMethod('isFullscreen');
       debugPrint('Received isFullscreen result: $result');

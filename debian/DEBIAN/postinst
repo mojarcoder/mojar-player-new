@@ -1,0 +1,10 @@
+#!/bin/sh
+# Post-installation script for mojar-player-pro
+
+# Update desktop database
+update-desktop-database -q || true
+
+# Update icon cache
+gtk-update-icon-cache -f -t -q /usr/share/icons/hicolor || true
+
+exit 0
